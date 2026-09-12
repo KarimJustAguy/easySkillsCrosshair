@@ -1,0 +1,10 @@
+## .NET
+bin/
+obj/
+*.user
+
+## Rider / JetBrains
+.idea/
+
+## VS
+.vs/
