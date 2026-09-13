@@ -60,7 +60,6 @@ public static class CrosshairDrawing
     {
         dc.PushTransform(new TranslateTransform(Math.Round(layer.OffsetX), Math.Round(layer.OffsetY)));
         dc.PushTransform(new RotateTransform(layer.RotationDegrees));
-        dc.PushOpacity(Math.Clamp(layer.Opacity, 0, 1));
 
         var fill = CreateBrush(layer.Color);
         var outline = layer.OutlineThickness > 0 ? CreateBrush(layer.OutlineColor) : null;
@@ -103,7 +102,6 @@ public static class CrosshairDrawing
                 break;
         }
 
-        dc.Pop();
         dc.Pop();
         dc.Pop();
     }

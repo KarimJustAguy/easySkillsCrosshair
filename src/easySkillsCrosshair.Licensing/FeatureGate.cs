@@ -23,7 +23,7 @@ public sealed class FeatureGate : IFeatureGate
 
     public bool IsColorAllowed(RgbaColor color) => IsPro || TrialCatalog.Colors.Contains(color);
 
-    public bool IsSizeAllowed(double size) => IsPro || TrialCatalog.Sizes.Contains(size);
+    public bool IsSizeAllowed(double size) => IsPro || size == TrialCatalog.DefaultSize;
 
     public bool IsUnlocked(Feature feature) => IsPro;
 
@@ -58,7 +58,7 @@ public sealed class FeatureGate : IFeatureGate
 
         if (!IsLayerTypeAllowed(layer.Type)) layer.Type = LayerType.Cross;
         if (!IsColorAllowed(layer.Color)) layer.Color = TrialCatalog.Colors[0];
-        if (!IsSizeAllowed(layer.Length)) layer.Length = NearestTrialSize(layer.Length);
+        layer.Length = TrialCatalog.DefaultSize;
         layer.OutlineThickness = 0;
         layer.ImagePath = null;
         layer.IsVisible = true;
@@ -67,9 +67,6 @@ public sealed class FeatureGate : IFeatureGate
         copy.DynamicReactions = new DynamicReactionSettings();
         return copy;
     }
-
-    private static double NearestTrialSize(double size) =>
-        TrialCatalog.Sizes.OrderBy(s => Math.Abs(s - size)).First();
 
     private void OnTierChanged(object? sender, LicenseTier tier) => Changed?.Invoke(this, EventArgs.Empty);
 }

@@ -189,32 +189,12 @@
                                     <Slider Style="{StaticResource Slider.Gold}" Minimum="0" Maximum="255" Value="{Binding ColorG}" />
                                     <TextBlock Text="{Binding ColorB, StringFormat='B {0:0}'}" Style="{StaticResource Text.Muted}" />
                                     <Slider Style="{StaticResource Slider.Gold}" Minimum="0" Maximum="255" Value="{Binding ColorB}" />
-                                    <TextBlock Text="{Binding Hue, StringFormat='H {0:0}°'}" Style="{StaticResource Text.Muted}" Margin="0,6,0,0" />
-                                    <Slider Style="{StaticResource Slider.Gold}" Minimum="0" Maximum="360" Value="{Binding Hue}" />
-                                    <TextBlock Text="{Binding Saturation, StringFormat='S {0:0}%'}" Style="{StaticResource Text.Muted}" />
-                                    <Slider Style="{StaticResource Slider.Gold}" Minimum="0" Maximum="100" Value="{Binding Saturation}" />
-                                    <TextBlock Text="{Binding Brightness, StringFormat='V {0:0}%'}" Style="{StaticResource Text.Muted}" />
-                                    <Slider Style="{StaticResource Slider.Gold}" Minimum="0" Maximum="100" Value="{Binding Brightness}" />
                                 </StackPanel>
                             </controls:ProGateControl>
                         </StackPanel>
 
                         <!-- Size -->
                         <TextBlock Text="GRÖSSE" Style="{StaticResource Label.Section}" />
-                        <ItemsControl ItemsSource="{Binding DataContext.SizePresets, ElementName=Root}" Margin="0,0,0,10">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <StackPanel Orientation="Horizontal" />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Button Style="{StaticResource Button.SizeChip}" Content="{Binding}"
-                                            Command="{Binding DataContext.SelectSizeCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                            CommandParameter="{Binding}" />
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
                         <controls:ProGateControl IsLocked="{Binding DataContext.IsSizeSliderLocked, ElementName=Root}" Margin="0,0,0,16">
                             <StackPanel>
                                 <TextBlock Style="{StaticResource Text.Muted}">
@@ -224,20 +204,20 @@
                             </StackPanel>
                         </controls:ProGateControl>
 
-                        <!-- Shape parameters -->
-                        <TextBlock Text="DARSTELLUNG" Style="{StaticResource Label.Section}" />
-                        <StackPanel Visibility="{Binding UsesThickness, Converter={StaticResource BoolToVisibility}}">
-                            <TextBlock Text="{Binding Thickness, StringFormat='Breite: {0:0.#}'}" Style="{StaticResource Text.Muted}" />
-                            <Slider Style="{StaticResource Slider.Gold}" Minimum="0.5" Maximum="12" Value="{Binding Thickness}" />
+                        <!-- Shape parameters (hidden for types that have none, e.g. Dot/Image) -->
+                        <StackPanel Margin="0,0,0,16" Visibility="{Binding HasShapeParameters, Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock Text="DARSTELLUNG" Style="{StaticResource Label.Section}" />
+                            <StackPanel Visibility="{Binding UsesThickness, Converter={StaticResource BoolToVisibility}}">
+                                <TextBlock Text="{Binding Thickness, StringFormat='Breite: {0:0.#}'}" Style="{StaticResource Text.Muted}" />
+                                <Slider Style="{StaticResource Slider.Gold}" Minimum="0.5" Maximum="12" Value="{Binding Thickness}" />
+                            </StackPanel>
+                            <StackPanel Visibility="{Binding UsesGap, Converter={StaticResource BoolToVisibility}}">
+                                <TextBlock Text="{Binding Gap, StringFormat='Abstand: {0:0.#}'}" Style="{StaticResource Text.Muted}" />
+                                <Slider Style="{StaticResource Slider.Gold}" Minimum="-10" Maximum="40" Value="{Binding Gap}" />
+                            </StackPanel>
+                            <CheckBox Content="Gefüllt" Style="{StaticResource CheckBox.Gold}" Margin="0,4,0,0" IsChecked="{Binding Filled}"
+                                      Visibility="{Binding UsesFilled, Converter={StaticResource BoolToVisibility}}" />
                         </StackPanel>
-                        <StackPanel Visibility="{Binding UsesGap, Converter={StaticResource BoolToVisibility}}">
-                            <TextBlock Text="{Binding Gap, StringFormat='Abstand: {0:0.#}'}" Style="{StaticResource Text.Muted}" />
-                            <Slider Style="{StaticResource Slider.Gold}" Minimum="-10" Maximum="40" Value="{Binding Gap}" />
-                        </StackPanel>
-                        <CheckBox Content="Gefüllt" Style="{StaticResource CheckBox.Gold}" Margin="0,4,0,8" IsChecked="{Binding Filled}"
-                                  Visibility="{Binding UsesFilled, Converter={StaticResource BoolToVisibility}}" />
-                        <TextBlock Text="{Binding Opacity, StringFormat='Deckkraft: {0:P0}'}" Style="{StaticResource Text.Muted}" />
-                        <Slider Style="{StaticResource Slider.Gold}" Minimum="0" Maximum="1" Value="{Binding Opacity}" Margin="0,0,0,16" />
 
                         <!-- Outline -->
                         <StackPanel Visibility="{Binding UsesOutline, Converter={StaticResource BoolToVisibility}}">

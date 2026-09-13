@@ -44,6 +44,7 @@ public sealed class LayerViewModel : ViewModelBase
     public bool UsesThickness => Layer.Type is not (LayerType.Dot or LayerType.Image);
     public bool UsesTStyle => Layer.Type == LayerType.Cross;
     public bool UsesFilled => Layer.Type == LayerType.Box;
+    public bool HasShapeParameters => UsesThickness || UsesGap || UsesFilled;
     public bool UsesOutline => Layer.Type != LayerType.Image;
     public bool UsesColor => Layer.Type != LayerType.Image;
     public bool IsImage => Layer.Type == LayerType.Image;
@@ -107,13 +108,7 @@ public sealed class LayerViewModel : ViewModelBase
         set => Set(() => Layer.RotationDegrees = Math.Clamp(value, 0, 360));
     }
 
-    public double Opacity
-    {
-        get => Layer.Opacity;
-        set => Set(() => Layer.Opacity = Math.Clamp(value, 0, 1));
-    }
-
-    // ---- color (Hex / RGB / HSV all edit the same value) ----
+    // ---- color (Hex / RGB edit the same value) ----
     public RgbaColor Color
     {
         get => Layer.Color;
@@ -148,36 +143,6 @@ public sealed class LayerViewModel : ViewModelBase
     {
         get => Layer.Color.B;
         set => Set(() => Layer.Color = Layer.Color with { B = ToByte(value) });
-    }
-
-    public double Hue
-    {
-        get => Layer.Color.ToHsv().Hue;
-        set
-        {
-            var (_, s, v) = Layer.Color.ToHsv();
-            Set(() => Layer.Color = RgbaColor.FromHsv(value, s, v, Layer.Color.A));
-        }
-    }
-
-    public double Saturation
-    {
-        get => Layer.Color.ToHsv().Saturation * 100;
-        set
-        {
-            var (h, _, v) = Layer.Color.ToHsv();
-            Set(() => Layer.Color = RgbaColor.FromHsv(h, value / 100, v, Layer.Color.A));
-        }
-    }
-
-    public double Brightness
-    {
-        get => Layer.Color.ToHsv().Value * 100;
-        set
-        {
-            var (h, s, _) = Layer.Color.ToHsv();
-            Set(() => Layer.Color = RgbaColor.FromHsv(h, s, value / 100, Layer.Color.A));
-        }
     }
 
     // ---- outline ----

@@ -51,9 +51,26 @@ public class FeatureGateTests
     {
         var gate = new FeatureGate(new FakeLicenseProvider());
         var profile = CrosshairProfile.CreateDefault();
-        profile.Layers[0].Length = TrialCatalog.Sizes[2];
+        profile.Layers[0].Length = TrialCatalog.DefaultSize;
 
         Assert.True(gate.IsProfileWithinLicense(profile));
+    }
+
+    [Fact]
+    public void Trial_Size_Is_Fixed_To_Default_Pro_Is_Free()
+    {
+        var license = new FakeLicenseProvider();
+        var gate = new FeatureGate(license);
+
+        Assert.True(gate.IsSizeAllowed(TrialCatalog.DefaultSize));
+        Assert.False(gate.IsSizeAllowed(TrialCatalog.DefaultSize + 1));
+
+        var profile = CrosshairProfile.CreateDefault();
+        profile.Layers[0].Length = 17;
+        Assert.Equal(TrialCatalog.DefaultSize, gate.ClampToLicense(profile).Layers[0].Length);
+
+        license.CurrentTier = LicenseTier.Pro;
+        Assert.True(gate.IsSizeAllowed(17));
     }
 
     [Fact]
@@ -61,8 +78,8 @@ public class FeatureGateTests
     {
         var gate = new FeatureGate(new FakeLicenseProvider());
         var profile = CrosshairProfile.CreateDefault();
-        profile.Layers[0].Length = TrialCatalog.Sizes[0];
-        profile.Layers.Add(new CrosshairLayer { Type = LayerType.Dot, Length = TrialCatalog.Sizes[0] });
+        profile.Layers[0].Length = TrialCatalog.DefaultSize;
+        profile.Layers.Add(new CrosshairLayer { Type = LayerType.Dot, Length = TrialCatalog.DefaultSize });
 
         Assert.False(gate.IsProfileWithinLicense(profile));
     }

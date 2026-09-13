@@ -34,7 +34,6 @@ public sealed class CrosshairEditorViewModel : ViewModelBase
 
         LayerTypeOptions = Enum.GetValues<LayerType>().Select(t => new LayerTypeOptionViewModel(t)).ToArray();
         ColorSwatches = TrialCatalog.Colors.Select(c => new ColorSwatchViewModel(c)).ToArray();
-        SizePresets = TrialCatalog.Sizes.ToArray();
 
         AddLayerCommand = new RelayCommand(p => AddLayer(p is LayerType t ? t : LayerType.Cross), _ => !IsMultiLayerLocked);
         AddImageLayerCommand = new RelayCommand(_ => AddImageLayer(), _ => IsCustomMediaUnlocked);
@@ -60,11 +59,6 @@ public sealed class CrosshairEditorViewModel : ViewModelBase
             if (p is ColorSwatchViewModel swatch && SelectedLayer is { } layer) layer.Color = swatch.Color;
         });
 
-        SelectSizeCommand = new RelayCommand(p =>
-        {
-            if (p is double size && SelectedLayer is { } layer) layer.Length = size;
-        });
-
         BrowseImageCommand = new RelayCommand(_ => BrowseImage(), _ => IsCustomMediaUnlocked && SelectedLayer?.IsImage == true);
         ResetCommand = new RelayCommand(_ => ApplyProfile(CrosshairProfile.CreateDefault(_profile.Name)));
 
@@ -78,7 +72,6 @@ public sealed class CrosshairEditorViewModel : ViewModelBase
     public ObservableCollection<LayerViewModel> Layers { get; } = [];
     public IReadOnlyList<LayerTypeOptionViewModel> LayerTypeOptions { get; }
     public IReadOnlyList<ColorSwatchViewModel> ColorSwatches { get; }
-    public IReadOnlyList<double> SizePresets { get; }
 
     public RelayCommand AddLayerCommand { get; }
     public RelayCommand AddImageLayerCommand { get; }
@@ -89,7 +82,6 @@ public sealed class CrosshairEditorViewModel : ViewModelBase
     public RelayCommand ToggleLayerVisibilityCommand { get; }
     public RelayCommand SelectLayerTypeCommand { get; }
     public RelayCommand SelectColorCommand { get; }
-    public RelayCommand SelectSizeCommand { get; }
     public RelayCommand BrowseImageCommand { get; }
     public RelayCommand ResetCommand { get; }
 

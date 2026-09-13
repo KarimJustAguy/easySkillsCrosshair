@@ -12,7 +12,6 @@ public sealed class CrosshairLayer
     public bool IsVisible { get; set; } = true;
 
     public RgbaColor Color { get; set; } = RgbaColor.FromHex("#D4AF37");
-    public double Opacity { get; set; } = 1.0;
 
     /// <summary>Arm length (Cross/XCross/Line/Chevron), radius (Circle), diameter (Dot), edge (Box), size (Image).</summary>
     public double Length { get; set; } = 6;

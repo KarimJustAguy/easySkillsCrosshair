@@ -9,6 +9,16 @@ Kategorien: **Neu** · **Geändert** · **Behoben** · **Entfernt**
 
 ## Unveröffentlicht
 
+### 2026-09-13 — Editor entschlackt
+**Entfernt**
+- H/S/V-Farbregler — Farbe nur noch per Farbfeldern, Hex-Eingabe und R/G/B-Reglern.
+- Feste Größen-Felder 2/4/6/10.
+- Deckkraft-Regler pro Ebene (die Transparenz des ganzen Fadenkreuzes bleibt).
+
+**Geändert**
+- Größe ist nur noch in Pro änderbar; Trial nutzt fest die Standardgröße 6.
+- Der Abschnitt „Darstellung" wird ausgeblendet, wenn die Form keine Einstellungen dafür hat (z. B. Punkt, Bild).
+
 ### 2026-09-13 — Sensitivity Converter: Trial/Pro-Aufteilung · `21098ff`
 **Neu**
 - Pro-Spielebibliothek mit 18 zusätzlichen Spielen (Source, GoldSrc, id Tech, klassische CoD-Titel), z. B. Deadlock, CS: Source, Left 4 Dead 2, Quake III, CoD4.
