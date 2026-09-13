@@ -5,173 +5,338 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:vm="clr-namespace:easySkillsCrosshair.App.ViewModels"
              xmlns:controls="clr-namespace:easySkillsCrosshair.App.Controls"
+             xmlns:render="clr-namespace:easySkillsCrosshair.Overlay.Rendering;assembly=easySkillsCrosshair.Overlay"
+             xmlns:crosshair="clr-namespace:easySkillsCrosshair.Core.Crosshair;assembly=easySkillsCrosshair.Core"
              mc:Ignorable="d"
+             x:Name="Root"
              d:DataContext="{d:DesignInstance Type=vm:CrosshairEditorViewModel}"
              Background="{StaticResource Brush.Background}">
-    <Grid Margin="28">
+    <Grid Margin="20">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" MinWidth="320" />
-            <ColumnDefinition Width="380" />
+            <ColumnDefinition Width="240" />
+            <ColumnDefinition Width="*" MinWidth="280" />
+            <ColumnDefinition Width="360" />
         </Grid.ColumnDefinitions>
 
-        <!-- Live preview -->
-        <Border Grid.Column="0" Style="{StaticResource Card}" Margin="0,0,20,0">
+        <!-- ===================== Layers ===================== -->
+        <Border Grid.Column="0" Style="{StaticResource Card}" Padding="14" Margin="0,0,14,0">
             <DockPanel>
-                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,16">
-                    <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
-                             Style="{StaticResource TextBox.Dark}" Width="240" />
+                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                    <TextBlock Text="{Binding Layers.Count}" Style="{StaticResource Text.Muted}" DockPanel.Dock="Right" />
+                    <TextBlock Text="EBENEN" Style="{StaticResource Label.Section}" Margin="0" />
+                </DockPanel>
+
+                <StackPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
+                    <WrapPanel Margin="0,0,0,8">
+                        <Button Content="Duplizieren" Style="{StaticResource Button.Small}" Command="{Binding DuplicateLayerCommand}" />
+                        <Button Content="▲" ToolTip="Nach oben" Style="{StaticResource Button.Small}" Command="{Binding MoveLayerUpCommand}" />
+                        <Button Content="▼" ToolTip="Nach unten" Style="{StaticResource Button.Small}" Command="{Binding MoveLayerDownCommand}" />
+                        <Button Content="Löschen" Style="{StaticResource Button.Small}" Command="{Binding RemoveLayerCommand}" />
+                    </WrapPanel>
+
+                    <TextBlock Text="EBENE HINZUFÜGEN" Style="{StaticResource Label.Section}" />
+                    <controls:ProGateControl IsLocked="{Binding IsMultiLayerLocked}">
+                        <WrapPanel>
+                            <Button Content="Kreuz" Style="{StaticResource Button.Small}" Command="{Binding AddLayerCommand}" CommandParameter="{x:Static crosshair:LayerType.Cross}" />
+                            <Button Content="Punkt" Style="{StaticResource Button.Small}" Command="{Binding AddLayerCommand}" CommandParameter="{x:Static crosshair:LayerType.Dot}" />
+                            <Button Content="Kreis" Style="{StaticResource Button.Small}" Command="{Binding AddLayerCommand}" CommandParameter="{x:Static crosshair:LayerType.Circle}" />
+                            <Button Content="X" Style="{StaticResource Button.Small}" Command="{Binding AddLayerCommand}" CommandParameter="{x:Static crosshair:LayerType.XCross}" />
+                            <Button Content="Box" Style="{StaticResource Button.Small}" Command="{Binding AddLayerCommand}" CommandParameter="{x:Static crosshair:LayerType.Box}" />
+                            <Button Content="Chevron" Style="{StaticResource Button.Small}" Command="{Binding AddLayerCommand}" CommandParameter="{x:Static crosshair:LayerType.Chevron}" />
+                            <Button Content="Linie" Style="{StaticResource Button.Small}" Command="{Binding AddLayerCommand}" CommandParameter="{x:Static crosshair:LayerType.Line}" />
+                            <Button Content="Bild…" Style="{StaticResource Button.Small}" Command="{Binding AddImageLayerCommand}" />
+                        </WrapPanel>
+                    </controls:ProGateControl>
                 </StackPanel>
-                <Border Background="{StaticResource Brush.Background}" CornerRadius="10" ClipToBounds="True">
-                    <Canvas x:Name="PreviewCanvas" Width="256" Height="256"
-                            HorizontalAlignment="Center" VerticalAlignment="Center" />
+
+                <ListBox Style="{StaticResource LayerListBox}"
+                         ItemContainerStyle="{StaticResource LayerListBoxItem}"
+                         ItemsSource="{Binding Layers}"
+                         SelectedItem="{Binding SelectedLayer}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate DataType="{x:Type vm:LayerViewModel}">
+                            <DockPanel>
+                                <Button DockPanel.Dock="Left" Style="{StaticResource Button.Ghost}" Width="26" Padding="0"
+                                        ToolTip="Sichtbar ein/aus"
+                                        Command="{Binding DataContext.ToggleLayerVisibilityCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        CommandParameter="{Binding}">
+                                    <Grid Width="14" Height="14">
+                                        <Ellipse Stroke="{StaticResource Brush.Gold}" StrokeThickness="1.5" />
+                                        <Ellipse x:Name="Pupil" Width="6" Height="6" Fill="{StaticResource Brush.Gold}" />
+                                    </Grid>
+                                </Button>
+                                <StackPanel Margin="6,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Name}" Style="{StaticResource Text.Body}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding TypeDisplayName}" Style="{StaticResource Text.Muted}" FontSize="11" />
+                                </StackPanel>
+                            </DockPanel>
+                            <DataTemplate.Triggers>
+                                <DataTrigger Binding="{Binding IsVisible}" Value="False">
+                                    <Setter TargetName="Pupil" Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </DataTemplate.Triggers>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+        </Border>
+
+        <!-- ===================== Preview ===================== -->
+        <Border Grid.Column="1" Style="{StaticResource Card}" Padding="14" Margin="0,0,14,0">
+            <DockPanel>
+                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+                    <Button DockPanel.Dock="Right" Content="Zurücksetzen" Style="{StaticResource Button.Small}" Margin="8,0,0,0"
+                            Command="{Binding ResetCommand}" />
+                    <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource TextBox.Dark}" />
+                </DockPanel>
+
+                <DockPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+                    <Border DockPanel.Dock="Right" Width="72" Height="72" CornerRadius="6" ClipToBounds="True"
+                            Background="#FF3A3A3A" ToolTip="1:1-Vorschau in Originalgröße">
+                        <render:CrosshairVisual x:Name="ActualSizeVisual" Width="72" Height="72" />
+                    </Border>
+                    <StackPanel Margin="0,0,14,0" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Value, ElementName=ZoomSlider, StringFormat='Zoom: {0:0.#}×'}" Style="{StaticResource Text.Muted}" />
+                        <Slider x:Name="ZoomSlider" Style="{StaticResource Slider.Gold}" Minimum="1" Maximum="8" Value="4" />
+                    </StackPanel>
+                </DockPanel>
+
+                <Border Background="#FF141414" CornerRadius="10" ClipToBounds="True">
+                    <Grid>
+                        <!-- Faint centre guides help judge symmetry and offsets. -->
+                        <Rectangle Height="1" Fill="{StaticResource Brush.Border}" VerticalAlignment="Center" Opacity="0.6" />
+                        <Rectangle Width="1" Fill="{StaticResource Brush.Border}" HorizontalAlignment="Center" Opacity="0.6" />
+                        <render:CrosshairVisual x:Name="PreviewVisual" Width="128" Height="128"
+                                                HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <render:CrosshairVisual.LayoutTransform>
+                                <ScaleTransform ScaleX="{Binding Value, ElementName=ZoomSlider}"
+                                                ScaleY="{Binding Value, ElementName=ZoomSlider}" />
+                            </render:CrosshairVisual.LayoutTransform>
+                        </render:CrosshairVisual>
+                    </Grid>
                 </Border>
             </DockPanel>
         </Border>
 
-        <!-- Inspector -->
-        <Border Grid.Column="1" Style="{StaticResource Card}">
-            <!-- Right padding keeps content clear of the (now slim) scrollbar. -->
-            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                          Padding="0,0,10,0">
+        <!-- ===================== Inspector ===================== -->
+        <Border Grid.Column="2" Style="{StaticResource Card}" Padding="16,16,6,16">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,10,0">
                 <StackPanel>
 
-                    <TextBlock Text="FORM" Style="{StaticResource Label.Section}" />
-                    <ItemsControl ItemsSource="{Binding ShapeOptions}" Margin="0,0,0,20">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <WrapPanel />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <controls:ProGateControl IsLocked="{Binding IsLocked}" IsCompact="True">
-                                    <Button Style="{StaticResource Button.OptionTile}"
-                                            ToolTip="{Binding DisplayName}"
-                                            Command="{Binding DataContext.SelectShapeCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                            CommandParameter="{Binding}">
-                                        <controls:CrosshairPreviewControl Profile="{Binding PreviewProfile}"
-                                                                          CanvasSize="40" Width="40" Height="40" />
-                                    </Button>
-                                </controls:ProGateControl>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                    <StackPanel DataContext="{Binding SelectedLayer}"
+                                Visibility="{Binding DataContext.HasSelectedLayer, ElementName=Root, Converter={StaticResource BoolToVisibility}}">
 
-                    <TextBlock Text="FARBE" Style="{StaticResource Label.Section}" />
-                    <ItemsControl ItemsSource="{Binding ColorSwatches}" Margin="0,0,0,12">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <StackPanel Orientation="Horizontal" />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Button Style="{StaticResource Button.ColorSwatch}"
-                                        Command="{Binding DataContext.SelectColorCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                        CommandParameter="{Binding}" />
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                        <TextBlock Text="EBENE" Style="{StaticResource Label.Section}" />
+                        <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource TextBox.Dark}" Margin="0,0,0,16" />
 
-                    <controls:ProGateControl IsLocked="{Binding IsColorPickerLocked}" Margin="0,0,0,20">
-                        <StackPanel>
-                            <!-- Swatch sits left of the input so the PRO badge (top-right) can't cover it. -->
-                            <Grid Margin="0,0,0,10">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="36" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <Border Grid.Column="0" CornerRadius="4" Height="32"
-                                        Background="{Binding ColorHex, Converter={StaticResource HexToBrushConverter}}"
-                                        BorderBrush="{StaticResource Brush.Border}" BorderThickness="1" />
-                                <TextBox Grid.Column="1" Margin="10,0,64,0" Style="{StaticResource TextBox.Dark}"
-                                         Text="{Binding ColorHex, UpdateSourceTrigger=PropertyChanged}" />
-                            </Grid>
+                        <TextBlock Text="FORM" Style="{StaticResource Label.Section}" />
+                        <ItemsControl ItemsSource="{Binding DataContext.LayerTypeOptions, ElementName=Root}" Margin="0,0,0,12">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type vm:LayerTypeOptionViewModel}">
+                                    <controls:ProGateControl IsLocked="{Binding IsLocked}" IsCompact="True">
+                                        <Button Style="{StaticResource Button.OptionTile}" ToolTip="{Binding DisplayName}"
+                                                Command="{Binding DataContext.SelectLayerTypeCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}">
+                                            <render:CrosshairVisual Profile="{Binding PreviewProfile}" Width="40" Height="40" />
+                                        </Button>
+                                    </controls:ProGateControl>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
 
-                            <TextBlock Text="R" Style="{StaticResource Text.Muted}" />
-                            <Slider Style="{StaticResource Slider.Gold}" Minimum="0" Maximum="255" Value="{Binding ColorR}" />
-                            <TextBlock Text="G" Style="{StaticResource Text.Muted}" />
-                            <Slider Style="{StaticResource Slider.Gold}" Minimum="0" Maximum="255" Value="{Binding ColorG}" />
-                            <TextBlock Text="B" Style="{StaticResource Text.Muted}" />
-                            <Slider Style="{StaticResource Slider.Gold}" Minimum="0" Maximum="255" Value="{Binding ColorB}" />
+                        <CheckBox Content="T-Form (oberen Arm ausblenden)" Style="{StaticResource CheckBox.Gold}" Margin="0,0,0,16"
+                                  IsChecked="{Binding TStyle}"
+                                  Visibility="{Binding UsesTStyle, Converter={StaticResource BoolToVisibility}}" />
 
-                            <TextBlock Text="H" Style="{StaticResource Text.Muted}" Margin="0,8,0,0" />
-                            <Slider Style="{StaticResource Slider.Gold}" Minimum="0" Maximum="360" Value="{Binding Hue}" />
-                            <TextBlock Text="S" Style="{StaticResource Text.Muted}" />
-                            <Slider Style="{StaticResource Slider.Gold}" Minimum="0" Maximum="100" Value="{Binding Saturation}" />
-                            <TextBlock Text="V" Style="{StaticResource Text.Muted}" />
-                            <Slider Style="{StaticResource Slider.Gold}" Minimum="0" Maximum="100" Value="{Binding Brightness}" />
+                        <!-- Colour -->
+                        <StackPanel Visibility="{Binding UsesColor, Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock Text="FARBE" Style="{StaticResource Label.Section}" />
+                            <ItemsControl ItemsSource="{Binding DataContext.ColorSwatches, ElementName=Root}" Margin="0,0,0,10">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Style="{StaticResource Button.ColorSwatch}"
+                                                Command="{Binding DataContext.SelectColorCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <controls:ProGateControl IsLocked="{Binding DataContext.IsColorPickerLocked, ElementName=Root}" Margin="0,0,0,16">
+                                <StackPanel>
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="36" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border CornerRadius="4" Height="32" BorderBrush="{StaticResource Brush.Border}" BorderThickness="1"
+                                                Background="{Binding ColorHex, Converter={StaticResource HexToBrushConverter}}" />
+                                        <TextBox Grid.Column="1" Margin="10,0,64,0" Style="{StaticResource TextBox.Dark}"
+                                                 Text="{Binding ColorHex, UpdateSourceTrigger=PropertyChanged}" />
+                                    </Grid>
+                                    <TextBlock Text="{Binding ColorR, StringFormat='R {0:0}'}" Style="{StaticResource Text.Muted}" />
+                                    <Slider Style="{StaticResource Slider.Gold}" Minimum="0" Maximum="255" Value="{Binding ColorR}" />
+                                    <TextBlock Text="{Binding ColorG, StringFormat='G {0:0}'}" Style="{StaticResource Text.Muted}" />
+                                    <Slider Style="{StaticResource Slider.Gold}" Minimum="0" Maximum="255" Value="{Binding ColorG}" />
+                                    <TextBlock Text="{Binding ColorB, StringFormat='B {0:0}'}" Style="{StaticResource Text.Muted}" />
+                                    <Slider Style="{StaticResource Slider.Gold}" Minimum="0" Maximum="255" Value="{Binding ColorB}" />
+                                    <TextBlock Text="{Binding Hue, StringFormat='H {0:0}°'}" Style="{StaticResource Text.Muted}" Margin="0,6,0,0" />
+                                    <Slider Style="{StaticResource Slider.Gold}" Minimum="0" Maximum="360" Value="{Binding Hue}" />
+                                    <TextBlock Text="{Binding Saturation, StringFormat='S {0:0}%'}" Style="{StaticResource Text.Muted}" />
+                                    <Slider Style="{StaticResource Slider.Gold}" Minimum="0" Maximum="100" Value="{Binding Saturation}" />
+                                    <TextBlock Text="{Binding Brightness, StringFormat='V {0:0}%'}" Style="{StaticResource Text.Muted}" />
+                                    <Slider Style="{StaticResource Slider.Gold}" Minimum="0" Maximum="100" Value="{Binding Brightness}" />
+                                </StackPanel>
+                            </controls:ProGateControl>
                         </StackPanel>
-                    </controls:ProGateControl>
 
-                    <TextBlock Text="GRÖSSE" Style="{StaticResource Label.Section}" />
-                    <ItemsControl ItemsSource="{Binding SizePresets}" Margin="0,0,0,12">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <StackPanel Orientation="Horizontal" />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Button Style="{StaticResource Button.SizeChip}"
-                                        Content="{Binding}"
-                                        Command="{Binding DataContext.SelectSizeCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                        CommandParameter="{Binding}" />
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                        <!-- Size -->
+                        <TextBlock Text="GRÖSSE" Style="{StaticResource Label.Section}" />
+                        <ItemsControl ItemsSource="{Binding DataContext.SizePresets, ElementName=Root}" Margin="0,0,0,10">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Style="{StaticResource Button.SizeChip}" Content="{Binding}"
+                                            Command="{Binding DataContext.SelectSizeCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <controls:ProGateControl IsLocked="{Binding DataContext.IsSizeSliderLocked, ElementName=Root}" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource Text.Muted}">
+                                    <Run Text="{Binding LengthLabel, Mode=OneWay}" /><Run Text=": " /><Run Text="{Binding Length, Mode=OneWay, StringFormat='{}{0:0.#}'}" />
+                                </TextBlock>
+                                <Slider Style="{StaticResource Slider.Gold}" Minimum="0" Maximum="60" Value="{Binding Length}" />
+                            </StackPanel>
+                        </controls:ProGateControl>
 
-                    <controls:ProGateControl IsLocked="{Binding IsSizeSliderLocked}" Margin="0,0,0,20">
-                        <StackPanel>
-                            <TextBlock Text="{Binding Size, StringFormat='Größe: {0:0.#}'}" Style="{StaticResource Text.Muted}" />
-                            <Slider Style="{StaticResource Slider.Gold}" Minimum="1" Maximum="64" Value="{Binding Size}" />
+                        <!-- Shape parameters -->
+                        <TextBlock Text="DARSTELLUNG" Style="{StaticResource Label.Section}" />
+                        <StackPanel Visibility="{Binding UsesThickness, Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock Text="{Binding Thickness, StringFormat='Breite: {0:0.#}'}" Style="{StaticResource Text.Muted}" />
+                            <Slider Style="{StaticResource Slider.Gold}" Minimum="0.5" Maximum="12" Value="{Binding Thickness}" />
                         </StackPanel>
-                    </controls:ProGateControl>
+                        <StackPanel Visibility="{Binding UsesGap, Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock Text="{Binding Gap, StringFormat='Abstand: {0:0.#}'}" Style="{StaticResource Text.Muted}" />
+                            <Slider Style="{StaticResource Slider.Gold}" Minimum="-10" Maximum="40" Value="{Binding Gap}" />
+                        </StackPanel>
+                        <CheckBox Content="Gefüllt" Style="{StaticResource CheckBox.Gold}" Margin="0,4,0,8" IsChecked="{Binding Filled}"
+                                  Visibility="{Binding UsesFilled, Converter={StaticResource BoolToVisibility}}" />
+                        <TextBlock Text="{Binding Opacity, StringFormat='Deckkraft: {0:P0}'}" Style="{StaticResource Text.Muted}" />
+                        <Slider Style="{StaticResource Slider.Gold}" Minimum="0" Maximum="1" Value="{Binding Opacity}" Margin="0,0,0,16" />
 
-                    <TextBlock Text="DARSTELLUNG" Style="{StaticResource Label.Section}" />
-                    <TextBlock Text="{Binding Thickness, StringFormat='Kontur: {0:0.#}'}" Style="{StaticResource Text.Muted}" />
-                    <Slider Style="{StaticResource Slider.Gold}" Minimum="0.5" Maximum="12" Value="{Binding Thickness}" />
+                        <!-- Outline -->
+                        <StackPanel Visibility="{Binding UsesOutline, Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock Text="KONTUR" Style="{StaticResource Label.Section}" />
+                            <controls:ProGateControl IsLocked="{Binding DataContext.IsOutlineLocked, ElementName=Root}" Margin="0,0,0,16">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding OutlineThickness, StringFormat='Konturstärke: {0:0.#}'}" Style="{StaticResource Text.Muted}" />
+                                    <Slider Style="{StaticResource Slider.Gold}" Minimum="0" Maximum="6" Value="{Binding OutlineThickness}" />
+                                    <Grid Margin="0,6,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="36" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border CornerRadius="4" Height="32" BorderBrush="{StaticResource Brush.Border}" BorderThickness="1"
+                                                Background="{Binding OutlineColorHex, Converter={StaticResource HexToBrushConverter}}" />
+                                        <TextBox Grid.Column="1" Margin="10,0,64,0" Style="{StaticResource TextBox.Dark}"
+                                                 Text="{Binding OutlineColorHex, UpdateSourceTrigger=PropertyChanged}" />
+                                    </Grid>
+                                </StackPanel>
+                            </controls:ProGateControl>
+                        </StackPanel>
+
+                        <!-- Image -->
+                        <StackPanel Visibility="{Binding IsImage, Converter={StaticResource BoolToVisibility}}" Margin="0,0,0,16">
+                            <TextBlock Text="BILD (PNG / GIF / SVG)" Style="{StaticResource Label.Section}" />
+                            <controls:ProGateControl IsLocked="{Binding DataContext.IsCustomMediaLocked, ElementName=Root}">
+                                <StackPanel>
+                                    <Button Content="Datei wählen…" Style="{StaticResource Button.Base}" HorizontalAlignment="Stretch"
+                                            Command="{Binding DataContext.BrowseImageCommand, ElementName=Root}" />
+                                    <TextBlock Text="{Binding ImageFileName}" Style="{StaticResource Text.Muted}" Margin="0,6,0,0"
+                                               TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </controls:ProGateControl>
+                        </StackPanel>
+
+                        <!-- Layer transform -->
+                        <TextBlock Text="EBENE VERSCHIEBEN / DREHEN" Style="{StaticResource Label.Section}" />
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="{Binding OffsetX, StringFormat='X: {0:0}'}" Style="{StaticResource Text.Muted}" />
+                                <Slider Style="{StaticResource Slider.Gold}" Minimum="-60" Maximum="60" Value="{Binding OffsetX}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="{Binding OffsetY, StringFormat='Y: {0:0}'}" Style="{StaticResource Text.Muted}" />
+                                <Slider Style="{StaticResource Slider.Gold}" Minimum="-60" Maximum="60" Value="{Binding OffsetY}" />
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock Text="{Binding Rotation, StringFormat='Rotation: {0:0}°'}" Style="{StaticResource Text.Muted}" />
+                        <Slider Style="{StaticResource Slider.Gold}" Minimum="0" Maximum="360" Value="{Binding Rotation}" Margin="0,0,0,20" />
+                    </StackPanel>
+
+                    <Separator Background="{StaticResource Brush.Border}" Margin="0,0,0,16" />
+
+                    <!-- Whole crosshair -->
+                    <TextBlock Text="GESAMTES FADENKREUZ" Style="{StaticResource Label.Section}" />
                     <TextBlock Text="{Binding Rotation, StringFormat='Rotation: {0:0}°'}" Style="{StaticResource Text.Muted}" />
                     <Slider Style="{StaticResource Slider.Gold}" Minimum="0" Maximum="360" Value="{Binding Rotation}" />
                     <TextBlock Text="{Binding Opacity, StringFormat='Transparenz: {0:P0}'}" Style="{StaticResource Text.Muted}" />
-                    <Slider Style="{StaticResource Slider.Gold}" Minimum="0" Maximum="1" Value="{Binding Opacity}" Margin="0,0,0,20" />
-
-                    <TextBlock Text="POSITION (X/Y-OFFSET)" Style="{StaticResource Label.Section}" />
+                    <Slider Style="{StaticResource Slider.Gold}" Minimum="0" Maximum="1" Value="{Binding Opacity}" Margin="0,0,0,8" />
+                    <TextBlock Text="Position auf dem Bildschirm" Style="{StaticResource Text.Muted}" />
                     <Grid Margin="0,0,0,20">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="12" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0">
-                            <TextBlock Text="{Binding OffsetX, StringFormat='X: {0}px'}" Style="{StaticResource Text.Muted}" />
-                            <Slider Style="{StaticResource Slider.Gold}" Minimum="-200" Maximum="200" Value="{Binding OffsetX}" />
+                        <StackPanel>
+                            <TextBlock Text="{Binding OffsetX, StringFormat='X: {0} px'}" Style="{StaticResource Text.Muted}" />
+                            <Slider Style="{StaticResource Slider.Gold}" Minimum="-300" Maximum="300" Value="{Binding OffsetX}" />
                         </StackPanel>
                         <StackPanel Grid.Column="2">
-                            <TextBlock Text="{Binding OffsetY, StringFormat='Y: {0}px'}" Style="{StaticResource Text.Muted}" />
-                            <Slider Style="{StaticResource Slider.Gold}" Minimum="-200" Maximum="200" Value="{Binding OffsetY}" />
+                            <TextBlock Text="{Binding OffsetY, StringFormat='Y: {0} px'}" Style="{StaticResource Text.Muted}" />
+                            <Slider Style="{StaticResource Slider.Gold}" Minimum="-300" Maximum="300" Value="{Binding OffsetY}" />
                         </StackPanel>
                     </Grid>
 
+                    <!-- Dynamic reactions -->
                     <TextBlock Text="DYNAMISCHE REAKTIONEN" Style="{StaticResource Label.Section}" />
-                    <controls:ProGateControl IsLocked="{Binding IsDynamicReactionsLocked}" Margin="0,0,0,20">
+                    <controls:ProGateControl IsLocked="{Binding IsDynamicReactionsLocked}">
                         <StackPanel>
-                            <CheckBox Content="Bloom beim Schießen" Style="{StaticResource CheckBox.Gold}"
-                                      IsChecked="{Binding BloomOnFire}" Margin="0,0,0,10" />
-                            <CheckBox Content="Ausblenden bei ADS" Style="{StaticResource CheckBox.Gold}"
-                                      IsChecked="{Binding HideOnAim}" Margin="0,0,0,10" />
-                            <CheckBox Content="T-Shape bei Bewegung" Style="{StaticResource CheckBox.Gold}"
-                                      IsChecked="{Binding TShapeOnMove}" />
-                        </StackPanel>
-                    </controls:ProGateControl>
-
-                    <TextBlock Text="CUSTOM MEDIA" Style="{StaticResource Label.Section}" />
-                    <controls:ProGateControl IsLocked="{Binding IsCustomMediaLocked}">
-                        <StackPanel>
-                            <Button Content="PNG / SVG / GIF hochladen" Style="{StaticResource Button.Base}"
-                                    HorizontalAlignment="Stretch" Command="{Binding BrowseCustomMediaCommand}" />
-                            <TextBlock Text="{Binding CustomMediaPath}" Style="{StaticResource Text.Muted}"
-                                       Margin="0,8,0,0" TextTrimming="CharacterEllipsis" />
+                            <CheckBox Content="Bloom beim Schießen (linke Maustaste)" Style="{StaticResource CheckBox.Gold}"
+                                      IsChecked="{Binding BloomOnFire}" Margin="0,0,0,8" />
+                            <StackPanel Margin="28,0,0,8" Visibility="{Binding BloomOnFire, Converter={StaticResource BoolToVisibility}}">
+                                <TextBlock Text="{Binding BloomAmount, StringFormat='Spreizung: {0:0} px'}" Style="{StaticResource Text.Muted}" />
+                                <Slider Style="{StaticResource Slider.Gold}" Minimum="0" Maximum="30" Value="{Binding BloomAmount}" />
+                                <TextBlock Text="{Binding BloomRecoverMilliseconds, StringFormat='Erholung: {0:0} ms'}" Style="{StaticResource Text.Muted}" />
+                                <Slider Style="{StaticResource Slider.Gold}" Minimum="20" Maximum="1000" Value="{Binding BloomRecoverMilliseconds}" />
+                            </StackPanel>
+                            <CheckBox Content="Ausblenden beim Zielen (rechte Maustaste)" Style="{StaticResource CheckBox.Gold}"
+                                      IsChecked="{Binding HideOnAim}" Margin="0,0,0,8" />
+                            <CheckBox Content="T-Form bei Bewegung (W/A/S/D)" Style="{StaticResource CheckBox.Gold}"
+                                      IsChecked="{Binding TShapeOnMove}" Margin="0,0,0,8" />
+                            <TextBlock Style="{StaticResource Text.Muted}" TextWrapping="Wrap" FontSize="11"
+                                       Text="Reagiert nur, wenn ein anderes Fenster (z. B. das Spiel oder der Desktop) im Vordergrund ist — Klicks in dieser App lösen nichts aus." />
                         </StackPanel>
                     </controls:ProGateControl>
 

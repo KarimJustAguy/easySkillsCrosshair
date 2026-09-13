@@ -25,33 +25,44 @@ public class FeatureGateTests
         public Task RefreshAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
+    private static CrosshairProfile ProOnlyProfile() => new()
+    {
+        Name = "pro",
+        Layers =
+        [
+            new CrosshairLayer { Type = LayerType.XCross, Color = RgbaColor.FromHex("#123456"), Length = 42, OutlineThickness = 1 },
+            new CrosshairLayer { Type = LayerType.Image, ImagePath = "reticle.png", Length = 16 },
+        ],
+        DynamicReactions = new DynamicReactionSettings { BloomOnFire = true },
+    };
+
     [Fact]
-    public void Trial_Rejects_Shape_Outside_Fixed_Catalog()
+    public void Trial_Rejects_Layer_Types_Outside_Catalog()
     {
         var gate = new FeatureGate(new FakeLicenseProvider());
 
-        Assert.False(gate.IsShapeAllowed(CrosshairShape.Custom));
-        Assert.True(gate.IsShapeAllowed(CrosshairShape.Dot));
+        Assert.True(gate.IsLayerTypeAllowed(LayerType.Dot));
+        Assert.False(gate.IsLayerTypeAllowed(LayerType.XCross));
+        Assert.False(gate.IsLayerTypeAllowed(LayerType.Image));
     }
 
     [Fact]
-    public void Trial_Rejects_Profile_With_Custom_Media_Upload()
+    public void Trial_Accepts_Default_Profile()
     {
         var gate = new FeatureGate(new FakeLicenseProvider());
-        var profile = new CrosshairProfile { Name = "x", CustomMediaPath = "reticle.png" };
+        var profile = CrosshairProfile.CreateDefault();
+        profile.Layers[0].Length = TrialCatalog.Sizes[2];
 
-        Assert.False(gate.IsProfileWithinLicense(profile));
+        Assert.True(gate.IsProfileWithinLicense(profile));
     }
 
     [Fact]
-    public void Trial_Rejects_Profile_With_Dynamic_Reactions()
+    public void Trial_Rejects_Multiple_Layers()
     {
         var gate = new FeatureGate(new FakeLicenseProvider());
-        var profile = new CrosshairProfile
-        {
-            Name = "x",
-            DynamicReactions = new DynamicReactionSettings { BloomOnFire = true },
-        };
+        var profile = CrosshairProfile.CreateDefault();
+        profile.Layers[0].Length = TrialCatalog.Sizes[0];
+        profile.Layers.Add(new CrosshairLayer { Type = LayerType.Dot, Length = TrialCatalog.Sizes[0] });
 
         Assert.False(gate.IsProfileWithinLicense(profile));
     }
@@ -59,19 +70,33 @@ public class FeatureGateTests
     [Fact]
     public void Pro_Allows_Everything()
     {
-        var license = new FakeLicenseProvider { CurrentTier = LicenseTier.Pro };
-        var gate = new FeatureGate(license);
-        var profile = new CrosshairProfile
-        {
-            Name = "x",
-            Shape = CrosshairShape.Custom,
-            CustomMediaPath = "reticle.svg",
-            Color = RgbaColor.FromHex("#123456"),
-            Size = 42,
-            DynamicReactions = new DynamicReactionSettings { BloomOnFire = true },
-        };
+        var gate = new FeatureGate(new FakeLicenseProvider { CurrentTier = LicenseTier.Pro });
 
-        Assert.True(gate.IsProfileWithinLicense(profile));
+        Assert.True(gate.IsProfileWithinLicense(ProOnlyProfile()));
+    }
+
+    [Fact]
+    public void Clamp_Reduces_Pro_Profile_To_Valid_Trial_Profile()
+    {
+        var gate = new FeatureGate(new FakeLicenseProvider());
+
+        var clamped = gate.ClampToLicense(ProOnlyProfile());
+
+        Assert.True(gate.IsProfileWithinLicense(clamped));
+        Assert.Single(clamped.Layers);
+        Assert.False(clamped.DynamicReactions.IsActive);
+    }
+
+    [Fact]
+    public void Clamp_Does_Not_Mutate_Input()
+    {
+        var gate = new FeatureGate(new FakeLicenseProvider());
+        var original = ProOnlyProfile();
+
+        gate.ClampToLicense(original);
+
+        Assert.Equal(2, original.Layers.Count);
+        Assert.True(original.DynamicReactions.BloomOnFire);
     }
 
     [Fact]

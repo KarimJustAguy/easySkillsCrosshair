@@ -57,7 +57,7 @@ public sealed class ProfilesViewModel : ViewModelBase
         {
             Id = Guid.NewGuid().ToString("N"),
             GameName = NewGameName,
-            Crosshair = Clone(_editor.Profile),
+            Crosshair = _editor.Profile.Clone(),
         };
 
         Profiles.Add(profile);
@@ -72,7 +72,7 @@ public sealed class ProfilesViewModel : ViewModelBase
             return;
         }
 
-        _editor.ApplyProfile(Clone(profile.Crosshair));
+        _editor.ApplyProfile(profile.Crosshair);
     }
 
     private void Delete(GameProfile? profile)
@@ -92,26 +92,4 @@ public sealed class ProfilesViewModel : ViewModelBase
     }
 
     private void Persist() => _profileStore.SaveAll(Profiles.ToArray());
-
-    private static CrosshairProfile Clone(CrosshairProfile source) => new()
-    {
-        Name = source.Name,
-        Shape = source.Shape,
-        Color = source.Color,
-        Size = source.Size,
-        Thickness = source.Thickness,
-        RotationDegrees = source.RotationDegrees,
-        Opacity = source.Opacity,
-        OffsetX = source.OffsetX,
-        OffsetY = source.OffsetY,
-        CustomMediaPath = source.CustomMediaPath,
-        DynamicReactions = new DynamicReactionSettings
-        {
-            BloomOnFire = source.DynamicReactions.BloomOnFire,
-            BloomAmount = source.DynamicReactions.BloomAmount,
-            BloomRecoverTime = source.DynamicReactions.BloomRecoverTime,
-            HideOnAim = source.DynamicReactions.HideOnAim,
-            TShapeOnMove = source.DynamicReactions.TShapeOnMove,
-        },
-    };
 }

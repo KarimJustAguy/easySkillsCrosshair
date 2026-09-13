@@ -4,7 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:vm="clr-namespace:easySkillsCrosshair.App.ViewModels"
-             xmlns:controls="clr-namespace:easySkillsCrosshair.App.Controls"
+             xmlns:render="clr-namespace:easySkillsCrosshair.Overlay.Rendering;assembly=easySkillsCrosshair.Overlay"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:ProfilesViewModel}"
              Background="{StaticResource Brush.Background}">
@@ -46,7 +46,7 @@
                 <DataTemplate>
                     <Border Style="{StaticResource Card}" Width="200" Margin="0,0,16,16">
                         <StackPanel>
-                            <controls:CrosshairPreviewControl Profile="{Binding Crosshair}" Height="120" Margin="0,0,0,12" />
+                            <Border Height="120" CornerRadius="8" Background="#FF141414" ClipToBounds="True" Margin="0,0,0,12"><render:CrosshairVisual Profile="{Binding Crosshair}" Width="60" Height="60"><render:CrosshairVisual.LayoutTransform><ScaleTransform ScaleX="2" ScaleY="2" /></render:CrosshairVisual.LayoutTransform></render:CrosshairVisual></Border>
                             <TextBlock Text="{Binding GameName}" Style="{StaticResource Heading2}" />
                             <TextBlock Text="{Binding Crosshair.Name}" Style="{StaticResource Text.Muted}" Margin="0,2,0,12" />
                             <Grid>

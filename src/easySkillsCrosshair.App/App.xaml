@@ -12,6 +12,7 @@
 
             <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
             <converters:HexToBrushConverter x:Key="HexToBrushConverter" />
+            <converters:ReferenceEqualsConverter x:Key="ReferenceEqualsConverter" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

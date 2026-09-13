@@ -10,73 +10,73 @@ Directory.Build.props            # x64, Nullable, LangVersion latest — shared 
 src/
   easySkillsCrosshair.Core/          net10.0, keine WPF/Win32-Referenz
     Mvvm/            ViewModelBase, RelayCommand
-    Crosshair/        CrosshairProfile, CrosshairShape, RgbaColor, DynamicReactionSettings
-    Overlay/          IOverlayHost, IMonitorProvider, MonitorDescriptor, OverlayHostKind (Abstraktionen)
-    Licensing/        ILicenseProvider, IFeatureGate, LicenseTier, Feature (Abstraktionen)
-  easySkillsCrosshair.Overlay/       net10.0-windows, WPF
-    Interop/          NativeMethods (P/Invoke: SetWindowLongPtr, SetWindowPos, GetDpiForMonitor)
-    WindowsOverlayWindow.cs          IOverlayHost-Implementierung (das Topmost-Fenster)
-    WindowsMonitorProvider.cs        Monitor-/DPI-Erkennung
-    SimpleCrosshairRenderer.cs       Platzhalter-Rendering (siehe Abschnitt 3)
+    Crosshair/       CrosshairProfile, CrosshairLayer, LayerType, RgbaColor, DynamicReactionSettings
+    Reactions/       ReactionEngine, CrosshairRenderState (Bloom/ADS/Bewegung, reine Logik)
+    AimTraining/     AimTrainingSession (Modi, Ziele, Scoring — reine Logik)
+    Community/       ICommunityService, LocalCommunityService, CrosshairShareCodec, CrosshairPresets
+    Persistence/     GameProfile, IProfileStore, JsonProfileStore
+    Overlay/         IOverlayHost, IMonitorProvider, MonitorDescriptor, OverlayHostKind
+    Licensing/       ILicenseProvider, ILicenseSwitch, IFeatureGate, LicenseTier, Feature
+  easySkillsCrosshair.Overlay/       net10.0-windows, WPF (+ SharpVectors.Wpf für SVG)
+    Rendering/       CrosshairDrawing (einziger Renderpfad), CrosshairVisual, ImageAssetCache/ImageAsset
+    Input/           RawInputListener (Maus/WASD per Raw Input, rein lesend)
+    Interop/         NativeMethods (SetWindowLongPtr, SetWindowPos, GetDpiForMonitor)
+    WindowsOverlayWindow.cs, WindowsMonitorProvider.cs, OverlayHostFactory.cs
     GameBar/GameBarOverlayHost.cs    Erweiterungspunkt, noch nicht implementiert
-    OverlayHostFactory.cs
   easySkillsCrosshair.Licensing/     net10.0
-    TrialCatalog.cs                  die 4 fixen Shapes/Farben/Größen
-    FeatureGate.cs                   IFeatureGate-Implementierung
-    TrialLicenseProvider.cs          Fallback, immer Trial
-    Steam/            ISteamAppsApi, SteamworksAppsApi, SteamLicenseProvider
+    TrialCatalog, FeatureGate (inkl. ClampToLicense), TrialLicenseProvider,
+    SwitchableLicenseProvider (Dev/QA), LicenseProviderFactory, Steam/
   easySkillsCrosshair.App/           net10.0-windows, WPF, Exe — Composition Root
-    App.xaml(.cs)     app.manifest (PerMonitorV2 DPI awareness), TrayIconController
-    Theme/            Colors.xaml, Controls.xaml (Schwarz-Gold ResourceDictionaries)
-    ViewModels/        MainViewModel + je ein ViewModel pro Sidebar-Bereich
-    Views/            MainWindow + je ein UserControl pro Sidebar-Bereich
-    Controls/          ProGateControl, CrosshairPreviewControl (Karten-Vorschau)
-    Converters/        HexToBrushConverter
-    Icons/            NavigationIcons (handgezeichnete, generische Vektor-Icons)
+    App.xaml(.cs), app.manifest (PerMonitorV2), TrayIconController
+    Theme/           Colors.xaml, Controls.xaml (Schwarz-Gold ResourceDictionaries)
+    ViewModels/      MainViewModel, CrosshairEditorViewModel, LayerViewModel, AimTrainingViewModel, …
+    Views/           MainWindow + je ein UserControl pro Sidebar-Bereich
+    Controls/        ProGateControl, AimArenaElement
+    Converters/, Icons/
 tests/
-  easySkillsCrosshair.Licensing.Tests/   xUnit-Tests für FeatureGate
-
-Zusätzlich in Core: Persistence/ (GameProfile, IProfileStore, JsonProfileStore) und
-Community/ (ICommunityService, CommunityCrosshairListing, PlaceholderCommunityService).
+  easySkillsCrosshair.Licensing.Tests/   xUnit: FeatureGate, Lizenz-Fallback, ReactionEngine,
+                                         ShareCodec, AimTrainingSession
 ```
 
-Geplante, noch nicht angelegte Module (bewusst nicht als leere Stubs erzeugt): `CrosshairEngine` (volle Shape-Renderer, Custom-Media-Compositing), der volle Aim-Trainer (Trainingsmodi, Metriken), Input (globale Hotkeys), sowie ein separates `GameBarWidget`-Projekt, sobald das umgesetzt wird.
-
-**Warum diese Trennung:** `Core` kennt weder WPF noch Win32 noch Steam — reine Domänenmodelle und Interfaces. `Overlay` und `Licensing` sind austauschbare Implementierungsdetails, die nur gegen `Core`-Interfaces arbeiten. `App` verdrahtet alles (Composition Root), ohne selbst Geschäftslogik zu enthalten.
+**Warum diese Trennung:** `Core` kennt weder WPF noch Win32 noch Steam — Domänenmodelle, Interfaces und die gesamte testbare Spiel-/Reaktions-/Sharing-Logik. `Overlay` und `Licensing` sind austauschbare Implementierungsdetails gegen `Core`-Interfaces. `App` verdrahtet alles und enthält keine Geschäftslogik.
 
 ## 2. Das Overlay-Fenster (100 % passiv)
 
-`WindowsOverlayWindow` (`src/easySkillsCrosshair.Overlay/WindowsOverlayWindow.cs`) ist ein normales WPF-`Window` ohne DirectX-Hooking, Injection oder RAM-Zugriff:
+`WindowsOverlayWindow` ist ein normales WPF-`Window` ohne DirectX-Hooking, Injection oder RAM-Zugriff:
 
-- **Click-through/Topmost/No-Activate** über `WS_EX_TRANSPARENT | WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW`, gesetzt via `SetWindowLongPtr` in `OnSourceInitialized`.
-- **Positionierung in physischen Pixeln** über `SetWindowPos` statt WPF's `Window.Left/Top` (DIP) — das umgeht die Mehrdeutigkeit von WPF's virtuellem Bildschirmkoordinatensystem bei Monitoren mit unterschiedlicher DPI-Skalierung.
-- **X/Y-Offset** (`SetOffset`) addiert sich auf den Monitor-Mittelpunkt drauf, bevor in Pixel umgerechnet wird.
-- **Multi-Monitor/DPI**: `WindowsMonitorProvider` liest reale Monitor-Bounds + DPI via `GetDpiForMonitor`; `app.manifest` erklärt `PerMonitorV2`, damit WPF den Inhalt pro Monitor korrekt skaliert.
-- **Topmost-Keepalive**: ein 1-Sekunden-Timer setzt `HWND_TOPMOST` erneut, falls andere Overlays die Z-Order verändern.
-- **Game-Bar-Erweiterungspunkt**: `IOverlayHost` + `OverlayHostFactory` + `GameBarOverlayHost` (Stub, wirft `NotSupportedException`) — der Austausch für Exclusive-Fullscreen ist später ein Einzeiler in der Factory.
+- **Click-through/Topmost/No-Activate** über `WS_EX_TRANSPARENT | WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW`.
+- **Positionierung in physischen Pixeln** über `SetWindowPos` (umgeht WPF-DIP-Mehrdeutigkeit bei gemischter DPI); **X/Y-Offset** relativ zum Monitor-Mittelpunkt.
+- **Multi-Monitor/DPI** via `GetDpiForMonitor` + `PerMonitorV2`-Manifest; **Topmost-Keepalive** jede Sekunde.
+- **Game-Bar-Erweiterungspunkt** hinter `IOverlayHost`/`OverlayHostFactory`.
 
-**Rendering-Ansatz-Begründung:** Für Vektor-Shapes (Dot/Cross/Circle) reicht natives WPF-Rendering (`SimpleCrosshairRenderer`, hier als Platzhalter) völlig aus — die Overlay-Fläche ist winzig, die Render-Kosten sind irrelevant für die Spiel-FPS, da es ein komplett separates OS-Fenster ist. Für die volle **Crosshair Engine** (animierte GIFs, SVG-Compositing, Bloom-Interpolation mit hoher Framerate) würde sich später ein Wechsel auf **Direct2D-Interop** (`D3DImage`/`SharpDX`/`Vortice.Windows`) anbieten, weil WPF's Software-nahe Rendering-Pipeline bei GIF-Frame-Decoding + Transformationen bei 240 Hz spürbar ruckeln kann, während Direct2D das direkt auf der GPU hält. Das ist ein austauschbares Detail hinter `SimpleCrosshairRenderer`/einer künftigen `ICrosshairRenderer`-Abstraktion, nicht Teil des Overlay-Fensters selbst.
+## 3. Crosshair-Engine (Pro)
 
-## 3. Feature-Toggle-System (Trial vs. Pro)
+- **Ebenen-Modell**: Ein `CrosshairProfile` ist ein Stapel `CrosshairLayer` (unten → oben). Typen: Fadenkreuz (Länge/Breite/Abstand/T-Form), Punkt, Kreis, X-Kreuz, Box (gefüllt/offen), Chevron, Linie, Bild. Jede Ebene hat eigene Farbe, Deckkraft, Kontur, Offset und Rotation — dadurch sind die Formen praktisch unbegrenzt kombinierbar.
+- **Ein Renderpfad**: `CrosshairDrawing` zeichnet direkt in einen `DrawingContext` und wird vom Overlay, der Editor-Vorschau und allen Miniaturen gleichermaßen genutzt — Vorschau und Overlay können nicht auseinanderlaufen. Immediate-Mode statt eines neu aufgebauten Shape-Baums hält Slider-Drags, Bloom-Animation und GIF-Frames allokationsarm; Pixel-Zentrierung hält 1-/2-px-Arme scharf.
+- **Custom Media**: `ImageAssetCache` dekodiert einmal pro Datei (Pfad + Änderungszeit): PNG, **animiertes GIF** (korrektes Frame-Compositing inkl. Offsets und Disposal) und **SVG** (SharpVectors → echte WPF-Vektorgrafik). Defekte Dateien zeichnen nichts statt zu crashen. `CrosshairVisual` abonniert Frame-Updates nur, solange tatsächlich ein animiertes GIF sichtbar ist.
+- **Dynamic Reactions**: `RawInputListener` registriert Raw Input mit `RIDEV_INPUTSINK` — bewusst **kein** `WH_MOUSE_LL`-Hook, da Low-Level-Hooks synchron in der Eingabekette laufen und Latenz erzeugen können; Raw Input erhält nur asynchrone Kopien und verändert nichts, was das Spiel sieht. Die Registrierung ist nur aktiv, solange das aktive Profil Reaktionen nutzt. `ReactionEngine` (Core, getestet) berechnet daraus Bloom (voll bei gehaltener LMT, lineare Erholung), Ausblenden bei RMT und T-Form bei WASD. Eingaben werden ignoriert, solange die App selbst im Vordergrund ist. Der Pro-Frame-Loop läuft nur während einer abklingenden Bloom-Animation.
 
-- `ILicenseProvider` (Core) — abstrahiert die Quelle der Lizenz. `SteamLicenseProvider` (Licensing/Steam) prüft `SteamApps.BIsDlcInstalled` über den schmalen `ISteamAppsApi`-Seam (testbar ohne echtes Steam); `TrialLicenseProvider` ist der Offline-Fallback.
-- `IFeatureGate`/`FeatureGate` (Licensing) ist die **einzige Stelle**, die "Trial vs. Pro" kennt: `IsShapeAllowed`, `IsColorAllowed`, `IsSizeAllowed` gegen `TrialCatalog` (4 Shapes, 4 Farben, 4 Größen), `IsUnlocked(Feature)` für Dynamic Reactions/Custom Media/Aim-Trainer/Workshop, sowie `IsProfileWithinLicense(profile)` als Gesamt-Check.
-- `App.xaml.cs` zeigt die Verdrahtung: Steam-Provider wird versucht, fällt bei fehlender `steam_api64.dll` sauber auf Trial zurück; das Overlay selbst enthält keine einzige Lizenz-Abfrage.
-- DPI-Calculator ist bewusst *nicht* gated — laut Vorgabe von Anfang an voll nutzbar.
+## 4. Feature-Toggle-System (Trial vs. Pro)
 
-## 4. Steam-Release-Vorbereitung
+- `ILicenseProvider` abstrahiert die Lizenzquelle: `SteamLicenseProvider` (`BIsDlcInstalled`), `TrialLicenseProvider` (Fallback), `SwitchableLicenseProvider` (Dev/QA, zur Laufzeit umschaltbar).
+- `IFeatureGate`/`FeatureGate` ist die **einzige Stelle**, die Trial vs. Pro kennt: `IsLayerTypeAllowed`/`IsColorAllowed`/`IsSizeAllowed` gegen `TrialCatalog` (Trial: 1 Ebene; Punkt/Kreuz/Kreis + T-Form; 4 Farben; 4 Größen; keine Kontur/Bilder/Reaktionen), `IsUnlocked(Feature)` für `MultipleLayers`, `DynamicReactions`, `CustomMediaUpload`, `FullAimTrainer`, `CommunitySharing`, sowie **`ClampToLicense`** — liefert eine auf die Stufe reduzierte Kopie. Jedes geladene Profil (Profile, Community, Tier-Wechsel) läuft da durch; ein Pro-Profil kann eine Trial-Sitzung nie stillschweigend hochstufen.
+- `IFeatureGate.Changed` propagiert Tier-Wechsel live an alle ViewModels — kein Neustart nötig.
+- **Pro-Schalter in Settings**: In **Debug-Builds** immer vorhanden, Start in Pro. In **Release-Builds** nur mit `EASYSKILLS_DEV_LICENSE=1` (Start Trial) oder `EASYSKILLS_FORCE_PRO=1` (Start Pro); ohne diese entscheidet ausschließlich das Steam-DLC — ein Steam-Release enthält keinen erreichbaren Gratis-Pro-Schalter.
+- DPI-Calculator ist bewusst *nicht* gated.
 
-- **`steam_appid.txt`** (`src/easySkillsCrosshair.App/steam_appid.txt`, Inhalt `480` = Valves öffentliche Test-AppId "Spacewar") wird per `<Content CopyToOutputDirectory="PreserveNewest">` ins Ausgabeverzeichnis kopiert, damit `SteamAPI.Init()` bei lokalen Testläufen ohne echte AppId nicht abstürzt. Vor dem echten Release durch die reale easySkills-AppId ersetzen.
-- **Sauberes Beenden**: Die App läuft mit `ShutdownMode="OnExplicitShutdown"` (`App.xaml`) — sie beendet sich also *nicht* automatisch, wenn das Hauptfenster oder das Overlay-Fenster geschlossen wird ("X" auf dem Hauptfenster versteckt es nur in den Tray, siehe `MainWindow.OnClosing`). `TrayIconController` (App-Projekt) stellt ein Tray-Icon mit "Öffnen"/"Beenden" bereit; "Beenden" ruft `Application.Shutdown()` auf. `App.OnExit` räumt in fester Reihenfolge auf: Tray-Icon disposen (verhindert ein "hängendes" Icon), Overlay disposen (stoppt den Topmost-Keepalive-Timer), `SteamAPI.Shutdown()` über `ISteamAppsApi.Shutdown()` — und beendet den Prozess anschließend hart mit `Environment.Exit(0)`, damit Steam nach dem Schließen niemals dauerhaft "Wird ausgeführt" anzeigt.
-- **Trial-Fallback-Validierung**: Das Konstruieren des Steamworks-Wrappers (`SteamworksAppsApi`, kann bei fehlendem/inkompatiblem `steam_api64.dll` werfen) ist bewusst von der eigentlichen Trial/Pro-Entscheidung getrennt (`LicenseProviderFactory.CreateFromSteam`). Dadurch ist der Fallback-Pfad — Steam-Client läuft nicht im Hintergrund → `TrialLicenseProvider` — unabhängig von echtem Steam per Unit-Test abgesichert (`LicenseProviderFactoryTests`), nicht nur durch manuelles Nachvollziehen.
+## 5. Steam-Release-Vorbereitung
 
-## 5. GUI (WPF, MVVM, eigenes Schwarz-Gold-Styling)
+- **`steam_appid.txt`** (`480` = Test-AppId „Spacewar") wird ins Ausgabeverzeichnis kopiert. Vor Release echte AppId eintragen und `ProDlcAppId` in `App.xaml.cs` setzen.
+- **Sauberes Beenden**: `ShutdownMode="OnExplicitShutdown"`; „X" versteckt das Hauptfenster in den Tray, nur Tray → „Beenden" beendet. `OnExit` disposed Tray-Icon, Overlay (inkl. Raw Input) und Steam API und erzwingt danach `Environment.Exit(0)`, damit Steam nie dauerhaft „Wird ausgeführt" zeigt.
+- **Trial-Fallback** bei fehlendem Steam per Unit-Test abgesichert (`LicenseProviderFactoryTests`).
+- **Offen**: `RefreshAsync` läuft nur beim Start — ein DLC-Kauf während der Sitzung greift erst nach Neustart (Auslöser über `DlcInstalled_t`-Callback oder periodisches Refresh nachrüsten; die Live-Update-Kette steht bereits).
 
-- **Theme**: `Theme/Colors.xaml` (Farbpalette: `#0A0A0A`/`#121212` Basis, `#D4AF37` Gold-Akzent) + `Theme/Controls.xaml` (komplett eigene `ControlTemplate`s für Button/Slider/ComboBox/TextBox/CheckBox/Card/Sidebar-Nav — kein Drittanbieter-Theme als Basis).
-- **Navigation**: `MainWindow` zeigt eine linke Sidebar (`ListBox` mit eigenem `ItemContainerStyle`) gegen `MainViewModel.NavigationItems`; der Content-Bereich ist ein `ContentControl`, dessen `DataTemplate`s (in `MainWindow.xaml`) jeden ViewModel-Typ auf sein `UserControl` mappen — klassische MVVM-Navigation ohne Code-Behind-Umschaltung.
-- **Live-Vorschau, doppelt verdrahtet**: `CrosshairEditorViewModel` mutiert **ein** `CrosshairProfile`-Objekt in-place und rendert nach jeder Änderung über denselben `SimpleCrosshairRenderer`, den auch `WindowsOverlayWindow` benutzt — einmal direkt in die eigene Editor-Canvas (`CrosshairEditorView` hört auf das `PreviewChanged`-Event, da In-Place-Mutation die Referenzgleichheits-Erkennung von WPF-DependencyProperties umgeht) und einmal über `IOverlayHost.UpdateContent(...)` ins echte Overlay-Fenster auf dem Bildschirm. Für Karten-Ansichten (Profile/Community, jedes Element ein *eigenes* `CrosshairProfile`) übernimmt stattdessen `CrosshairPreviewControl` (eine DependencyProperty-basierte, wiederverwendbare Miniatur), da dort Referenzgleichheit ganz normal funktioniert.
-- **Trial/Pro-Kennzeichnung**: `ProGateControl` (eigenes `ContentControl`) umschließt jeden Pro-only-Bereich (Custom-Shape, freier Hex/RGB/HSV-Picker, freier Größen-Regler, Dynamic Reactions, Custom-Media-Upload) — im gesperrten Zustand wird der Inhalt gedimmt/deaktiviert statt versteckt, plus dezentes Gold-umrandetes "PRO"-Badge mit Schloss-Icon. Die Sperr-Entscheidung kommt in jedem Fall aus `IFeatureGate`, nie aus der View selbst.
-- **Profile/Community laden**: `ProfilesViewModel`/`CommunityViewModel` rufen `CrosshairEditorViewModel.ApplyProfile(...)` auf; diese Methode klemmt ein geladenes Profil aktiv auf die aktuelle Lizenzstufe (`IFeatureGate.IsShapeAllowed`/`IsColorAllowed`/`IsSizeAllowed`/`IsUnlocked`), bevor es angezeigt wird — ein importiertes Pro-Profil kann eine laufende Trial-Sitzung also nicht stillschweigend "hochstufen".
-- **`ICommunityService`** (Core/Community) ist rein interface-basiert; `PlaceholderCommunityService` liefert statische Demo-Daten ohne Netzwerkzugriff. Ein späterer Server-Client ersetzt nur die Implementierung — `CommunityViewModel` und die View bleiben unverändert.
-- **Persistenz**: `IProfileStore`/`JsonProfileStore` (Core/Persistence) speichert Per-Game-Profile als JSON unter `%AppData%\easySkills\Crosshair\profiles.json`.
-- **Bewusst nicht in dieser Version**: der volle Aim-Trainer (nur Platzhalter-Ansicht mit Feature-Gate-Anzeige) und die per-Spiel-Yaw-Datenbank im DPI-Calculator (nur 3 verifizierte Presets + freies Yaw-Feld für alles andere) — beides eigenständige, größere Folge-Aufgaben.
+## 6. GUI (WPF, MVVM, eigenes Schwarz-Gold-Styling)
+
+- **Theme**: eigene `ControlTemplate`s für Button/Slider/ComboBox/TextBox/CheckBox/ToggleSwitch/ScrollBar/Card/Nav — kein Drittanbieter-Theme.
+- **Navigation**: Sidebar-`ListBox` gegen `MainViewModel`; `DataTemplate`s mappen ViewModel-Typen auf Views.
+- **Crosshair-Editor**: Ebenenliste (hinzufügen, duplizieren, sortieren, ein-/ausblenden, löschen) | Live-Vorschau mit Zoom und 1:1-Inset | Inspektor mit typabhängigen Abschnitten (Form-Kacheln als Live-Miniaturen, Hex/RGB/HSV, Größe, Breite/Abstand/T-Form, Kontur, Bild, Ebenen-Transform, Gesamt-Transform, Dynamic Reactions). Das Profil wird in-place mutiert; Views aktualisieren die Vorschau über das `PreviewChanged`-Event und melden sich bei `Unloaded` ab, damit neu erzeugte Views nicht über das langlebige ViewModel leaken.
+- **Schießstand**: `AimTrainingSession` (Core) + `AimArenaElement` (Immediate-Mode-Rendering) + dein aktuelles Fadenkreuz als Cursor. Modi Flick/Präzision/Tracking, Dauer 0,5–30 min, Metriken Zeit/Score/Treffer/Präzision/Ø-Reaktion. Trial: 30-Sekunden-Flick-Vorschau.
+- **Community**: `LocalCommunityService` — eingebaute Presets + lokale Bibliothek (`%AppData%\easySkills\Crosshair\community.json`). Teilen per **Share-Code** (`ESC1:` + gzip + Base64URL; ohne Bilddaten, lokale Pfade werden nie geteilt) oder **Datei** (`.escrosshair`, Bilder eingebettet und beim Import inhaltsadressiert nach `media\` entpackt). Decoder ist größenbegrenzt, versioniert und wirft ausschließlich `FormatException`. Steam Workshop ist später hinter `ICommunityService` nachrüstbar.
+- **Trial/Pro-Kennzeichnung**: `ProGateControl` dimmt/deaktiviert gesperrte Bereiche und zeigt ein Gold-„PRO"-Badge (kompakte Icon-Variante für kleine Kacheln).
+- **Persistenz**: Per-Game-Profile als JSON unter `%AppData%\easySkills\Crosshair\profiles.json`.

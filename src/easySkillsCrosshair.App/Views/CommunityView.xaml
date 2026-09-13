@@ -5,6 +5,8 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:vm="clr-namespace:easySkillsCrosshair.App.ViewModels"
              xmlns:controls="clr-namespace:easySkillsCrosshair.App.Controls"
+             xmlns:community="clr-namespace:easySkillsCrosshair.Core.Community;assembly=easySkillsCrosshair.Core"
+             xmlns:render="clr-namespace:easySkillsCrosshair.Overlay.Rendering;assembly=easySkillsCrosshair.Overlay"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:CommunityViewModel}"
              Background="{StaticResource Brush.Background}">
@@ -12,53 +14,117 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Margin="0,0,0,20">
+        <StackPanel Grid.Row="0" Margin="0,0,0,18">
             <TextBlock Text="Community-Fadenkreuze" Style="{StaticResource Heading1}" Margin="0,0,0,4" />
-            <TextBlock Text="Von der Community geteilte Konfigurationen entdecken (Demo-Daten, noch nicht online)."
+            <TextBlock Text="Vorlagen durchstöbern und Fadenkreuze lokal teilen — per Share-Code oder als Datei."
                        Style="{StaticResource Text.Muted}" />
         </StackPanel>
 
-        <Grid Grid.Row="1" Margin="0,0,0,20">
+        <!-- Sharing -->
+        <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,0,0,14">
+            <controls:ProGateControl IsLocked="{Binding IsSharingLocked}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="24" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="SHARE-CODE IMPORTIEREN" Style="{StaticResource Label.Section}" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox Style="{StaticResource TextBox.Dark}" Text="{Binding ShareCodeInput, UpdateSourceTrigger=PropertyChanged}" />
+                            <Button Grid.Column="1" Content="Importieren" Style="{StaticResource Button.Primary}" Margin="10,0,0,0"
+                                    Command="{Binding ImportShareCodeCommand}" />
+                        </Grid>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="AKTUELLES FADENKREUZ TEILEN" Style="{StaticResource Label.Section}" />
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="Code kopieren" Style="{StaticResource Button.Base}" Command="{Binding CopyShareCodeCommand}" />
+                            <Button Content="Als Datei exportieren" Style="{StaticResource Button.Base}" Margin="8,0,0,0" Command="{Binding ExportFileCommand}" />
+                            <Button Content="Datei importieren" Style="{StaticResource Button.Base}" Margin="8,0,0,0" Command="{Binding ImportFileCommand}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+            </controls:ProGateControl>
+        </Border>
+
+        <!-- Search + status -->
+        <Grid Grid.Row="2" Margin="0,0,0,14">
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="320" />
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="120" />
             </Grid.ColumnDefinitions>
-            <TextBox Grid.Column="0" Style="{StaticResource TextBox.Dark}"
-                     Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
-            <Button Grid.Column="1" Margin="12,0,0,0" Style="{StaticResource Button.Primary}"
-                    Content="Suchen" Command="{Binding SearchCommand}" />
+            <TextBox Style="{StaticResource TextBox.Dark}" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
+            <Button Grid.Column="1" Content="Suchen" Style="{StaticResource Button.Base}" Margin="10,0,0,0" Command="{Binding SearchCommand}" />
+            <TextBlock Grid.Column="2" Text="{Binding StatusMessage}" Margin="16,0,0,0" VerticalAlignment="Center"
+                       TextWrapping="Wrap" FontSize="12"
+                       Visibility="{Binding HasStatus, Converter={StaticResource BoolToVisibility}}">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Foreground" Value="{StaticResource Brush.Gold}" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsStatusError}" Value="True">
+                                <Setter Property="Foreground" Value="{StaticResource Brush.Danger}" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
         </Grid>
 
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                      Padding="0,0,10,0">
-        <ItemsControl ItemsSource="{Binding Listings}">
-            <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                    <WrapPanel />
-                </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-            <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                    <Border Style="{StaticResource Card}" Width="220" Margin="0,0,16,16">
-                        <StackPanel>
-                            <controls:CrosshairPreviewControl Profile="{Binding Profile}" Height="130" Margin="0,0,0,12" />
-                            <Grid Margin="0,0,0,4">
-                                <TextBlock Text="{Binding Name}" Style="{StaticResource Heading2}" HorizontalAlignment="Left" />
-                                <TextBlock Text="{Binding Likes, StringFormat='♥ {0}'}" Style="{StaticResource Text.Muted}"
-                                           HorizontalAlignment="Right" Foreground="{StaticResource Brush.Gold}" />
-                            </Grid>
-                            <TextBlock Text="{Binding AuthorName, StringFormat='von {0}'}" Style="{StaticResource Text.Muted}" Margin="0,0,0,12" />
-                            <Button Content="Jetzt verwenden" Style="{StaticResource Button.Primary}"
-                                    Command="{Binding DataContext.UseCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                    CommandParameter="{Binding}" />
-                        </StackPanel>
-                    </Border>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
+        <!-- Listings -->
+        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,10,0">
+            <ItemsControl ItemsSource="{Binding Listings}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type community:CommunityCrosshairListing}">
+                        <Border Style="{StaticResource Card}" Width="230" Margin="0,0,14,14" Padding="14">
+                            <StackPanel>
+                                <Border Height="130" CornerRadius="8" Background="#FF141414" ClipToBounds="True" Margin="0,0,0,12">
+                                    <render:CrosshairVisual Profile="{Binding Profile}" Width="64" Height="64">
+                                        <render:CrosshairVisual.LayoutTransform>
+                                            <ScaleTransform ScaleX="2" ScaleY="2" />
+                                        </render:CrosshairVisual.LayoutTransform>
+                                    </render:CrosshairVisual>
+                                </Border>
+                                <TextBlock Text="{Binding Name}" Style="{StaticResource Heading2}" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding AuthorName}" Style="{StaticResource Text.Muted}" Margin="0,2,0,6" />
+                                <TextBlock Text="{Binding Description}" Style="{StaticResource Text.Muted}" TextWrapping="Wrap"
+                                           Height="34" TextTrimming="CharacterEllipsis" Margin="0,0,0,12" />
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Button Content="Verwenden" Style="{StaticResource Button.Primary}"
+                                            Command="{Binding DataContext.UseCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}" />
+                                    <Button Grid.Column="1" Content="Entfernen" Style="{StaticResource Button.Ghost}" Margin="6,0,0,0"
+                                            Visibility="{Binding IsImported, Converter={StaticResource BoolToVisibility}}"
+                                            Command="{Binding DataContext.RemoveCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
         </ScrollViewer>
     </Grid>
 </UserControl>

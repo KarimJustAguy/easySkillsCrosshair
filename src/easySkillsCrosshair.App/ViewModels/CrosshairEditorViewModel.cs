@@ -1,4 +1,4 @@
-using System.Windows.Input;
+using System.Collections.ObjectModel;
 using easySkillsCrosshair.Core.Crosshair;
 using easySkillsCrosshair.Core.Licensing;
 using easySkillsCrosshair.Core.Mvvm;
@@ -8,16 +8,21 @@ using easySkillsCrosshair.Licensing;
 namespace easySkillsCrosshair.App.ViewModels;
 
 /// <summary>
-/// Owns the crosshair currently being edited. Every mutation immediately (a) re-renders the
-/// editor's own live-preview canvas via <see cref="PreviewChanged"/> and (b) pushes the same
-/// profile into the real <see cref="IOverlayHost"/> — both paths render through the identical
-/// <c>SimpleCrosshairRenderer</c>, so the preview can never drift from what's actually on screen.
+/// Layer-based crosshair editor. Owns the profile being edited; every change is pushed straight
+/// to the real <see cref="IOverlayHost"/> and signalled to the view's live canvas via
+/// <see cref="PreviewChanged"/>. Both render through the same CrosshairDrawing engine.
+///
+/// <see cref="Layers"/> is in display order (topmost first); the profile stores render order
+/// (bottom first) — <see cref="SyncProfileLayers"/> maps between them after structural edits.
 /// </summary>
 public sealed class CrosshairEditorViewModel : ViewModelBase
 {
+    private const string ImageFileFilter = "Reticle (*.png;*.gif;*.svg)|*.png;*.gif;*.svg";
+
     private readonly IOverlayHost _overlay;
     private readonly IFeatureGate _featureGate;
     private CrosshairProfile _profile;
+    private LayerViewModel? _selectedLayer;
 
     public event EventHandler? PreviewChanged;
 
@@ -25,285 +30,334 @@ public sealed class CrosshairEditorViewModel : ViewModelBase
     {
         _overlay = overlay;
         _featureGate = featureGate;
-        _profile = new CrosshairProfile { Name = "Neues Fadenkreuz" };
+        _profile = CrosshairProfile.CreateDefault("Neues Fadenkreuz");
 
-        ShapeOptions = Enum.GetValues<CrosshairShape>()
-            .Select(shape => new ShapeOptionViewModel
-            {
-                Shape = shape,
-                DisplayName = shape.ToString(),
-                IsLocked = !_featureGate.IsShapeAllowed(shape),
-                PreviewProfile = new CrosshairProfile
-                {
-                    Name = shape.ToString(),
-                    Shape = shape,
-                    Color = RgbaColor.FromHex("#D4AF37"),
-                    Size = 7,
-                    Thickness = 1.6,
-                },
-            })
-            .ToArray();
-
-        ColorSwatches = TrialCatalog.Colors
-            .Select(color => new ColorSwatchViewModel(color))
-            .ToArray();
-
+        LayerTypeOptions = Enum.GetValues<LayerType>().Select(t => new LayerTypeOptionViewModel(t)).ToArray();
+        ColorSwatches = TrialCatalog.Colors.Select(c => new ColorSwatchViewModel(c)).ToArray();
         SizePresets = TrialCatalog.Sizes.ToArray();
 
-        SelectShapeCommand = new RelayCommand(p =>
+        AddLayerCommand = new RelayCommand(p => AddLayer(p is LayerType t ? t : LayerType.Cross), _ => !IsMultiLayerLocked);
+        AddImageLayerCommand = new RelayCommand(_ => AddImageLayer(), _ => IsCustomMediaUnlocked);
+        RemoveLayerCommand = new RelayCommand(p => RemoveLayer(p as LayerViewModel ?? SelectedLayer), _ => Layers.Count > 1);
+        DuplicateLayerCommand = new RelayCommand(p => DuplicateLayer(p as LayerViewModel ?? SelectedLayer), _ => !IsMultiLayerLocked);
+        MoveLayerUpCommand = new RelayCommand(p => MoveLayer(p as LayerViewModel ?? SelectedLayer, -1));
+        MoveLayerDownCommand = new RelayCommand(p => MoveLayer(p as LayerViewModel ?? SelectedLayer, +1));
+        ToggleLayerVisibilityCommand = new RelayCommand(p =>
         {
-            if (p is ShapeOptionViewModel { IsLocked: false } option)
+            if (p is LayerViewModel layer) layer.IsVisible = !layer.IsVisible;
+        });
+
+        SelectLayerTypeCommand = new RelayCommand(p =>
+        {
+            if (p is LayerTypeOptionViewModel { IsLocked: false } option && SelectedLayer is { } layer)
             {
-                Shape = option.Shape;
+                ChangeLayerType(layer, option.Type);
             }
         });
 
         SelectColorCommand = new RelayCommand(p =>
         {
-            if (p is ColorSwatchViewModel swatch)
-            {
-                _profile.Color = swatch.Color;
-                Publish();
-            }
+            if (p is ColorSwatchViewModel swatch && SelectedLayer is { } layer) layer.Color = swatch.Color;
         });
 
         SelectSizeCommand = new RelayCommand(p =>
         {
-            if (p is double size)
-            {
-                Size = size;
-            }
+            if (p is double size && SelectedLayer is { } layer) layer.Length = size;
         });
 
-        BrowseCustomMediaCommand = new RelayCommand(_ => BrowseCustomMedia(), _ => IsCustomMediaUnlocked);
+        BrowseImageCommand = new RelayCommand(_ => BrowseImage(), _ => IsCustomMediaUnlocked && SelectedLayer?.IsImage == true);
+        ResetCommand = new RelayCommand(_ => ApplyProfile(CrosshairProfile.CreateDefault(_profile.Name)));
 
-        // The tier can change at runtime (dev Trial/Pro toggle), so every lock state has to be
-        // re-evaluated instead of staying as computed here in the constructor.
-        _featureGate.Changed += OnLicenseTierChanged;
+        _featureGate.Changed += (_, _) => OnLicenseTierChanged();
 
+        RebuildLayers();
+        RefreshLockStates();
         Publish();
     }
 
-    public IReadOnlyList<ShapeOptionViewModel> ShapeOptions { get; }
+    public ObservableCollection<LayerViewModel> Layers { get; } = [];
+    public IReadOnlyList<LayerTypeOptionViewModel> LayerTypeOptions { get; }
     public IReadOnlyList<ColorSwatchViewModel> ColorSwatches { get; }
     public IReadOnlyList<double> SizePresets { get; }
 
-    public ICommand SelectShapeCommand { get; }
-    public ICommand SelectColorCommand { get; }
-    public ICommand SelectSizeCommand { get; }
-    public RelayCommand BrowseCustomMediaCommand { get; }
+    public RelayCommand AddLayerCommand { get; }
+    public RelayCommand AddImageLayerCommand { get; }
+    public RelayCommand RemoveLayerCommand { get; }
+    public RelayCommand DuplicateLayerCommand { get; }
+    public RelayCommand MoveLayerUpCommand { get; }
+    public RelayCommand MoveLayerDownCommand { get; }
+    public RelayCommand ToggleLayerVisibilityCommand { get; }
+    public RelayCommand SelectLayerTypeCommand { get; }
+    public RelayCommand SelectColorCommand { get; }
+    public RelayCommand SelectSizeCommand { get; }
+    public RelayCommand BrowseImageCommand { get; }
+    public RelayCommand ResetCommand { get; }
 
     public CrosshairProfile Profile => _profile;
 
+    public LayerViewModel? SelectedLayer
+    {
+        get => _selectedLayer;
+        set
+        {
+            if (!SetField(ref _selectedLayer, value)) return;
+            OnPropertyChanged(nameof(HasSelectedLayer));
+            RefreshActiveTypeOption();
+            BrowseImageCommand.RaiseCanExecuteChanged();
+        }
+    }
+
+    public bool HasSelectedLayer => _selectedLayer is not null;
+
+    // ---- license state ----
     public bool IsProUser => _featureGate.Tier == LicenseTier.Pro;
     public bool IsCustomMediaUnlocked => _featureGate.IsUnlocked(Feature.CustomMediaUpload);
-    public bool IsDynamicReactionsUnlocked => _featureGate.IsUnlocked(Feature.DynamicReactions);
-
-    /// <summary>Trial's swatches/presets always work; the free-form pickers are Pro-only.</summary>
+    public bool IsMultiLayerLocked => !_featureGate.IsUnlocked(Feature.MultipleLayers);
     public bool IsColorPickerLocked => !IsProUser;
     public bool IsSizeSliderLocked => !IsProUser;
-    public bool IsDynamicReactionsLocked => !IsDynamicReactionsUnlocked;
+    public bool IsOutlineLocked => !IsProUser;
+    public bool IsDynamicReactionsLocked => !_featureGate.IsUnlocked(Feature.DynamicReactions);
     public bool IsCustomMediaLocked => !IsCustomMediaUnlocked;
 
+    // ---- whole-crosshair properties ----
     public string Name
     {
         get => _profile.Name;
-        set { _profile.Name = value; Publish(); }
-    }
-
-    public CrosshairShape Shape
-    {
-        get => _profile.Shape;
-        set { _profile.Shape = value; Publish(); }
-    }
-
-    public double Size
-    {
-        get => _profile.Size;
-        set { _profile.Size = Math.Clamp(value, 1, 64); Publish(); }
-    }
-
-    public double Thickness
-    {
-        get => _profile.Thickness;
-        set { _profile.Thickness = Math.Clamp(value, 0.5, 12); Publish(); }
+        set => SetProfile(() => _profile.Name = value);
     }
 
     public double Rotation
     {
         get => _profile.RotationDegrees;
-        set { _profile.RotationDegrees = value; Publish(); }
+        set => SetProfile(() => _profile.RotationDegrees = Math.Clamp(value, 0, 360));
     }
 
     public double Opacity
     {
         get => _profile.Opacity;
-        set { _profile.Opacity = Math.Clamp(value, 0, 1); Publish(); }
+        set => SetProfile(() => _profile.Opacity = Math.Clamp(value, 0, 1));
     }
 
     public int OffsetX
     {
         get => _profile.OffsetX;
-        set { _profile.OffsetX = value; Publish(); }
+        set => SetProfile(() => _profile.OffsetX = Math.Clamp(value, -500, 500));
     }
 
     public int OffsetY
     {
         get => _profile.OffsetY;
-        set { _profile.OffsetY = value; Publish(); }
+        set => SetProfile(() => _profile.OffsetY = Math.Clamp(value, -500, 500));
     }
 
-    public string ColorHex
-    {
-        get => _profile.Color.ToHex();
-        set
-        {
-            if (RgbaColor.TryFromHex(value, out var color))
-            {
-                _profile.Color = color;
-                Publish();
-            }
-        }
-    }
-
-    public double ColorR
-    {
-        get => _profile.Color.R;
-        set { _profile.Color = _profile.Color with { R = (byte)Math.Clamp(value, 0, 255) }; Publish(); }
-    }
-
-    public double ColorG
-    {
-        get => _profile.Color.G;
-        set { _profile.Color = _profile.Color with { G = (byte)Math.Clamp(value, 0, 255) }; Publish(); }
-    }
-
-    public double ColorB
-    {
-        get => _profile.Color.B;
-        set { _profile.Color = _profile.Color with { B = (byte)Math.Clamp(value, 0, 255) }; Publish(); }
-    }
-
-    public double Hue
-    {
-        get => _profile.Color.ToHsv().Hue;
-        set
-        {
-            var (_, s, v) = _profile.Color.ToHsv();
-            _profile.Color = RgbaColor.FromHsv(value, s, v, _profile.Color.A);
-            Publish();
-        }
-    }
-
-    public double Saturation
-    {
-        get => _profile.Color.ToHsv().Saturation * 100;
-        set
-        {
-            var (h, _, v) = _profile.Color.ToHsv();
-            _profile.Color = RgbaColor.FromHsv(h, value / 100.0, v, _profile.Color.A);
-            Publish();
-        }
-    }
-
-    public double Brightness
-    {
-        get => _profile.Color.ToHsv().Value * 100;
-        set
-        {
-            var (h, s, _) = _profile.Color.ToHsv();
-            _profile.Color = RgbaColor.FromHsv(h, s, value / 100.0, _profile.Color.A);
-            Publish();
-        }
-    }
-
-    public string? CustomMediaPath
-    {
-        get => _profile.CustomMediaPath;
-        set { _profile.CustomMediaPath = value; Publish(); }
-    }
-
+    // ---- dynamic reactions ----
     public bool BloomOnFire
     {
         get => _profile.DynamicReactions.BloomOnFire;
-        set { _profile.DynamicReactions.BloomOnFire = value; Publish(); }
+        set => SetProfile(() => _profile.DynamicReactions.BloomOnFire = value);
+    }
+
+    public double BloomAmount
+    {
+        get => _profile.DynamicReactions.BloomAmount;
+        set => SetProfile(() => _profile.DynamicReactions.BloomAmount = Math.Clamp(value, 0, 40));
+    }
+
+    public double BloomRecoverMilliseconds
+    {
+        get => _profile.DynamicReactions.BloomRecoverTime.TotalMilliseconds;
+        set => SetProfile(() => _profile.DynamicReactions.BloomRecoverTime = TimeSpan.FromMilliseconds(Math.Clamp(value, 20, 2000)));
     }
 
     public bool HideOnAim
     {
         get => _profile.DynamicReactions.HideOnAim;
-        set { _profile.DynamicReactions.HideOnAim = value; Publish(); }
+        set => SetProfile(() => _profile.DynamicReactions.HideOnAim = value);
     }
 
     public bool TShapeOnMove
     {
         get => _profile.DynamicReactions.TShapeOnMove;
-        set { _profile.DynamicReactions.TShapeOnMove = value; Publish(); }
+        set => SetProfile(() => _profile.DynamicReactions.TShapeOnMove = value);
     }
 
     /// <summary>
-    /// Loads an externally-supplied profile (from Profiles/Community) into the editor,
-    /// clamping anything the current license tier doesn't allow rather than silently
-    /// applying a Pro-only configuration to a Trial session.
+    /// Loads a profile (from Profiles/Community) as an independent copy, clamped to what the
+    /// current tier permits — a Pro crosshair can never silently activate in a Trial session.
     /// </summary>
     public void ApplyProfile(CrosshairProfile profile)
     {
-        _profile = new CrosshairProfile
-        {
-            Name = profile.Name,
-            Shape = _featureGate.IsShapeAllowed(profile.Shape) ? profile.Shape : CrosshairShape.Cross,
-            Color = _featureGate.IsColorAllowed(profile.Color) ? profile.Color : TrialCatalog.Colors[0],
-            Size = _featureGate.IsSizeAllowed(profile.Size) ? profile.Size : TrialCatalog.Sizes[0],
-            Thickness = profile.Thickness,
-            RotationDegrees = profile.RotationDegrees,
-            Opacity = profile.Opacity,
-            OffsetX = profile.OffsetX,
-            OffsetY = profile.OffsetY,
-            CustomMediaPath = IsCustomMediaUnlocked ? profile.CustomMediaPath : null,
-            DynamicReactions = IsDynamicReactionsUnlocked ? profile.DynamicReactions : new DynamicReactionSettings(),
-        };
+        _profile = _featureGate.ClampToLicense(profile);
+        RebuildLayers();
+        OnPropertyChanged(null);
         Publish();
     }
 
-    /// <summary>
-    /// Re-evaluates every lock and clamps the currently edited profile down to the new tier —
-    /// switching Pro → Trial while a Pro-only shape/colour is active must not leave the editor
-    /// in a state the license no longer permits.
-    /// </summary>
-    private void OnLicenseTierChanged(object? sender, EventArgs e)
+    private void AddLayer(LayerType type)
     {
-        foreach (var option in ShapeOptions)
-        {
-            option.IsLocked = !_featureGate.IsShapeAllowed(option.Shape);
-        }
+        if (IsMultiLayerLocked || !_featureGate.IsLayerTypeAllowed(type)) return;
 
-        BrowseCustomMediaCommand.RaiseCanExecuteChanged();
-        ApplyProfile(_profile);
+        var layer = new CrosshairLayer
+        {
+            Name = NextLayerName(type),
+            Type = type,
+            Length = type == LayerType.Image ? 16 : type == LayerType.Dot ? 3 : 6,
+        };
+        InsertAboveSelection(layer);
     }
 
-    private void BrowseCustomMedia()
+    private void AddImageLayer()
     {
-        var dialog = new Microsoft.Win32.OpenFileDialog
-        {
-            Filter = "Reticle (*.png;*.svg;*.gif)|*.png;*.svg;*.gif",
-        };
+        if (IsCustomMediaLocked || PickImageFile() is not { } path) return;
 
-        if (dialog.ShowDialog() == true)
+        InsertAboveSelection(new CrosshairLayer
         {
-            _profile.CustomMediaPath = dialog.FileName;
-            _profile.Shape = CrosshairShape.Custom;
-            Publish();
+            Name = System.IO.Path.GetFileNameWithoutExtension(path),
+            Type = LayerType.Image,
+            ImagePath = path,
+            Length = 16,
+        });
+    }
+
+    private void DuplicateLayer(LayerViewModel? source)
+    {
+        if (source is null || IsMultiLayerLocked) return;
+
+        var copy = source.Layer.Clone();
+        copy.Name = source.Name + " Kopie";
+        InsertAboveSelection(copy);
+    }
+
+    private void InsertAboveSelection(CrosshairLayer layer)
+    {
+        var vm = CreateLayerViewModel(layer);
+        var index = SelectedLayer is { } selected ? Layers.IndexOf(selected) : 0;
+        Layers.Insert(Math.Max(0, index), vm);
+        SelectedLayer = vm;
+        OnStructureChanged();
+    }
+
+    private void RemoveLayer(LayerViewModel? layer)
+    {
+        if (layer is null || Layers.Count <= 1) return;
+
+        var index = Layers.IndexOf(layer);
+        Layers.Remove(layer);
+        SelectedLayer = Layers[Math.Clamp(index, 0, Layers.Count - 1)];
+        OnStructureChanged();
+    }
+
+    private void MoveLayer(LayerViewModel? layer, int direction)
+    {
+        if (layer is null) return;
+
+        var from = Layers.IndexOf(layer);
+        var to = from + direction;
+        if (from < 0 || to < 0 || to >= Layers.Count) return;
+
+        Layers.Move(from, to);
+        OnStructureChanged();
+    }
+
+    private void ChangeLayerType(LayerViewModel layer, LayerType type)
+    {
+        if (layer.Type == type) return;
+
+        if (type == LayerType.Image && string.IsNullOrEmpty(layer.ImagePath))
+        {
+            if (PickImageFile() is not { } path) return;
+            layer.Layer.ImagePath = path;
+            layer.Layer.Length = Math.Max(layer.Layer.Length, 16);
         }
+
+        layer.Type = type; // notifies + publishes
+        RefreshActiveTypeOption();
+        BrowseImageCommand.RaiseCanExecuteChanged();
+    }
+
+    private void BrowseImage()
+    {
+        if (SelectedLayer is { IsImage: true } layer && PickImageFile() is { } path)
+        {
+            layer.ImagePath = path;
+        }
+    }
+
+    private static string? PickImageFile()
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog { Filter = ImageFileFilter };
+        return dialog.ShowDialog() == true ? dialog.FileName : null;
+    }
+
+    private string NextLayerName(LayerType type)
+    {
+        var baseName = LayerTypeNames.Get(type);
+        var n = Layers.Count(l => l.Name.StartsWith(baseName, StringComparison.Ordinal)) + 1;
+        return n == 1 ? baseName : $"{baseName} {n}";
+    }
+
+    private void OnLicenseTierChanged()
+    {
+        RefreshLockStates();
+        ApplyProfile(_profile); // clamps down on Pro → Trial, no-op copy on Trial → Pro
+    }
+
+    private void RefreshLockStates()
+    {
+        foreach (var option in LayerTypeOptions)
+        {
+            option.IsLocked = !_featureGate.IsLayerTypeAllowed(option.Type);
+        }
+
+        AddLayerCommand.RaiseCanExecuteChanged();
+        AddImageLayerCommand.RaiseCanExecuteChanged();
+        DuplicateLayerCommand.RaiseCanExecuteChanged();
+        BrowseImageCommand.RaiseCanExecuteChanged();
+    }
+
+    private void RebuildLayers()
+    {
+        var previouslySelectedIndex = SelectedLayer is { } s ? Layers.IndexOf(s) : 0;
+
+        Layers.Clear();
+        for (var i = _profile.Layers.Count - 1; i >= 0; i--)
+        {
+            Layers.Add(CreateLayerViewModel(_profile.Layers[i]));
+        }
+
+        SelectedLayer = Layers.Count == 0 ? null : Layers[Math.Clamp(previouslySelectedIndex, 0, Layers.Count - 1)];
+        RemoveLayerCommand.RaiseCanExecuteChanged();
+    }
+
+    private LayerViewModel CreateLayerViewModel(CrosshairLayer layer) => new(layer, onChanged: Publish);
+
+    private void OnStructureChanged()
+    {
+        SyncProfileLayers();
+        RemoveLayerCommand.RaiseCanExecuteChanged();
+        Publish();
+    }
+
+    private void SyncProfileLayers() =>
+        _profile.Layers = Layers.Reverse().Select(vm => vm.Layer).ToList();
+
+    private void RefreshActiveTypeOption()
+    {
+        foreach (var option in LayerTypeOptions)
+        {
+            option.IsActive = SelectedLayer?.Type == option.Type;
+        }
+    }
+
+    private void SetProfile(Action mutate, [System.Runtime.CompilerServices.CallerMemberName] string? propertyName = null)
+    {
+        mutate();
+        OnPropertyChanged(propertyName);
+        Publish();
     }
 
     private void Publish()
     {
-        foreach (var option in ShapeOptions)
-        {
-            option.IsActive = option.Shape == _profile.Shape;
-        }
-
-        OnPropertyChanged(null);
         _overlay.SetOffset(_profile.OffsetX, _profile.OffsetY);
         _overlay.UpdateContent(_profile);
         PreviewChanged?.Invoke(this, EventArgs.Empty);

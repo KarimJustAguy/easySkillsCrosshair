@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using easySkillsCrosshair.App.ViewModels;
 using easySkillsCrosshair.App.Views;
@@ -36,41 +37,12 @@ public partial class App : System.Windows.Application
         };
         _trayIcon.OpenRequested += (_, _) => ShowMainWindow();
 
-        // Dev/testing mode: a runtime-switchable provider, so Settings can flip Trial/Pro live.
-        // EASYSKILLS_FORCE_PRO=1 additionally starts in Pro. Neither is ever the shipped path.
-        var forcePro = Environment.GetEnvironmentVariable("EASYSKILLS_FORCE_PRO") == "1";
-        var devLicensing = forcePro || Environment.GetEnvironmentVariable("EASYSKILLS_DEV_LICENSE") == "1";
-
-        ILicenseProvider licenseProvider;
-        ILicenseSwitch? licenseSwitch = null;
-
-        if (devLicensing)
-        {
-            var switchable = new SwitchableLicenseProvider(forcePro ? LicenseTier.Pro : LicenseTier.Trial);
-            licenseProvider = switchable;
-            licenseSwitch = switchable;
-        }
-        else
-        {
-            _steamApps = TryCreateSteamAppsApi();
-            licenseProvider = LicenseProviderFactory.CreateFromSteam(_steamApps, ProDlcAppId);
-        }
-
+        var (licenseProvider, licenseSwitch) = CreateLicensing();
         await licenseProvider.RefreshAsync();
         IFeatureGate featureGate = new FeatureGate(licenseProvider);
 
         var monitorProvider = new WindowsMonitorProvider();
-        var initialProfile = new CrosshairProfile { Name = "Default" };
-        if (!featureGate.IsProfileWithinLicense(initialProfile))
-        {
-            initialProfile = new CrosshairProfile
-            {
-                Name = "Default",
-                Shape = TrialCatalog.Shapes[1],
-                Color = TrialCatalog.Colors[0],
-                Size = TrialCatalog.Sizes[1],
-            };
-        }
+        var initialProfile = featureGate.ClampToLicense(CrosshairProfile.CreateDefault());
 
         _overlay = OverlayHostFactory.Create(OverlayHostKind.WindowsTopmostLayer);
         _overlay.Initialize(new OverlayHostOptions(monitorProvider.GetPrimary(), initialProfile));
@@ -82,19 +54,52 @@ public partial class App : System.Windows.Application
         var crosshairEditor = new CrosshairEditorViewModel(_overlay, featureGate);
         crosshairEditor.ApplyProfile(initialProfile);
 
+        var dataDirectory = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "easySkills", "Crosshair");
+
         IProfileStore profileStore = new JsonProfileStore();
-        ICommunityService communityService = new PlaceholderCommunityService();
+        ICommunityService communityService = new LocalCommunityService(
+            new CrosshairShareCodec(Path.Combine(dataDirectory, "media")),
+            Path.Combine(dataDirectory, "community.json"));
 
         var mainViewModel = new MainViewModel(
             crosshairEditor,
-            new AimTrainingViewModel(featureGate),
+            new AimTrainingViewModel(featureGate, crosshairEditor),
             new DpiCalculatorViewModel(),
             new ProfilesViewModel(profileStore, crosshairEditor),
-            new CommunityViewModel(communityService, crosshairEditor),
+            new CommunityViewModel(communityService, crosshairEditor, featureGate),
             new SettingsViewModel(featureGate, licenseSwitch));
 
         _mainWindow = new MainWindow(mainViewModel);
         _mainWindow.Show();
+    }
+
+    /// <summary>
+    /// Debug builds (running from the IDE): always a runtime-switchable provider starting in Pro,
+    /// so both tiers can be tested from Settings without any setup.
+    /// Release builds: the real Steam DLC check — unless explicitly opted into dev licensing via
+    /// EASYSKILLS_DEV_LICENSE=1 (starts Trial) or EASYSKILLS_FORCE_PRO=1 (starts Pro). A shipped
+    /// Steam build therefore never contains a reachable free Pro switch.
+    /// </summary>
+    private (ILicenseProvider Provider, ILicenseSwitch? Switch) CreateLicensing()
+    {
+#if DEBUG
+        var isDebugBuild = true; // not const: avoids unreachable-code warnings for the other branch
+#else
+        var isDebugBuild = false;
+#endif
+        var forcePro = Environment.GetEnvironmentVariable("EASYSKILLS_FORCE_PRO") == "1";
+        var devLicense = Environment.GetEnvironmentVariable("EASYSKILLS_DEV_LICENSE") == "1";
+
+        if (isDebugBuild || forcePro || devLicense)
+        {
+            var startTier = isDebugBuild || forcePro ? LicenseTier.Pro : LicenseTier.Trial;
+            var switchable = new SwitchableLicenseProvider(startTier);
+            return (switchable, switchable);
+        }
+
+        _steamApps = TryCreateSteamAppsApi();
+        return (LicenseProviderFactory.CreateFromSteam(_steamApps, ProDlcAppId), null);
     }
 
     private void ShowMainWindow()
