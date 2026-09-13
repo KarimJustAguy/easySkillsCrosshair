@@ -8,4 +8,6 @@ public enum Feature
     CustomMediaUpload,
     FullAimTrainer,
     CommunitySharing,
+    /// <summary>Sensitivity converter: games beyond the Trial set in games.json.</summary>
+    ExtendedGameLibrary,
 }

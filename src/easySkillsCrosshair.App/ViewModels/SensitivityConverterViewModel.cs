@@ -1,24 +1,30 @@
 using System.Globalization;
 using System.Runtime.InteropServices;
+using easySkillsCrosshair.Core.Licensing;
 using easySkillsCrosshair.Core.Mvvm;
 using easySkillsCrosshair.Core.Sensitivity;
 
 namespace easySkillsCrosshair.App.ViewModels;
 
 /// <summary>
-/// Game-to-game sensitivity converter (360°-distance method). Unrestricted in every tier.
+/// Game-to-game sensitivity converter (360°-distance method). Trial: the core game set plus a
+/// custom factor. Pro: the extended library (<see cref="Feature.ExtendedGameLibrary"/>); those
+/// games are shown locked in Trial rather than hidden.
 /// Inputs are strings so both "0,35" and "0.35" are accepted regardless of the UI culture;
 /// results use a dot, because that is what games' settings fields expect.
 /// </summary>
 public sealed class SensitivityConverterViewModel : ViewModelBase
 {
     private static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
+    private const string DefaultFromId = "valorant";
+    private const string DefaultToId = "counter-strike-2";
 
+    private readonly IFeatureGate _featureGate;
     private readonly string _statePath;
     private readonly SensitivityConverterState _state;
 
-    private GameSensitivityProfile _fromGame;
-    private GameSensitivityProfile _toGame;
+    private GameOptionViewModel _fromOption;
+    private GameOptionViewModel _toOption;
     private string _sensitivityInput;
     private string _dpiFromInput;
     private string _dpiToInput;
@@ -26,21 +32,32 @@ public sealed class SensitivityConverterViewModel : ViewModelBase
     private string _customYawToInput;
     private string _copyStatus = "";
 
-    public SensitivityConverterViewModel(IReadOnlyList<GameSensitivityProfile> games, string? catalogWarning, string statePath)
+    public SensitivityConverterViewModel(
+        IReadOnlyList<GameSensitivityProfile> games,
+        string? catalogWarning,
+        string statePath,
+        IFeatureGate featureGate)
     {
+        _featureGate = featureGate;
         _statePath = statePath;
         _state = SensitivityConverterState.Load(statePath);
         CatalogWarning = catalogWarning;
 
-        Games =
+        var custom = new GameSensitivityProfile(GameSensitivityProfile.CustomId, "Benutzerdefiniert (eigener Faktor)", 0.022, 3,
+            "Eigener Yaw-Wert: Grad Drehung pro Maus-Count bei Sensitivity 1.");
+
+        // Trial games first, then the Pro library — each block alphabetically.
+        GameOptions =
         [
-            .. games,
-            new GameSensitivityProfile(GameSensitivityProfile.CustomId, "Benutzerdefiniert (eigener Faktor)", 0.022, 3,
-                "Eigener Yaw-Wert: Grad Drehung pro Maus-Count bei Sensitivity 1."),
+            .. games.Where(g => !g.IsProOnly).OrderBy(g => g.Name, StringComparer.CurrentCultureIgnoreCase).Select(g => new GameOptionViewModel(g)),
+            new GameOptionViewModel(custom),
+            .. games.Where(g => g.IsProOnly).OrderBy(g => g.Name, StringComparer.CurrentCultureIgnoreCase).Select(g => new GameOptionViewModel(g)),
         ];
 
-        _fromGame = FindGame(_state.FromGameId) ?? FindGame("valorant") ?? Games[0];
-        _toGame = FindGame(_state.ToGameId) ?? FindGame("counter-strike-2") ?? Games[^1];
+        RefreshLocks();
+
+        _fromOption = SelectableOrDefault(_state.FromGameId, DefaultFromId);
+        _toOption = SelectableOrDefault(_state.ToGameId, DefaultToId);
         _sensitivityInput = _state.Sensitivity;
         _dpiFromInput = _state.DpiFrom;
         _dpiToInput = _state.DpiTo;
@@ -49,27 +66,41 @@ public sealed class SensitivityConverterViewModel : ViewModelBase
 
         SwapCommand = new RelayCommand(_ => Swap());
         CopyResultCommand = new RelayCommand(_ => CopyResult(), _ => HasResult);
+
+        _featureGate.Changed += (_, _) => OnLicenseTierChanged();
     }
 
-    public IReadOnlyList<GameSensitivityProfile> Games { get; }
+    public IReadOnlyList<GameOptionViewModel> GameOptions { get; }
     public RelayCommand SwapCommand { get; }
     public RelayCommand CopyResultCommand { get; }
 
     public string? CatalogWarning { get; }
     public bool HasCatalogWarning => CatalogWarning is not null;
 
+    public bool IsLibraryLocked => !_featureGate.IsUnlocked(Feature.ExtendedGameLibrary);
+    public int ProGameCount => GameOptions.Count(o => o.Profile.IsProOnly);
+
     // ---- inputs ----
-    public GameSensitivityProfile FromGame
+    public GameOptionViewModel FromOption
     {
-        get => _fromGame;
-        set => SetInput(ref _fromGame, value);
+        get => _fromOption;
+        set
+        {
+            if (value is { IsSelectable: true }) SetInput(ref _fromOption, value);
+        }
     }
 
-    public GameSensitivityProfile ToGame
+    public GameOptionViewModel ToOption
     {
-        get => _toGame;
-        set => SetInput(ref _toGame, value);
+        get => _toOption;
+        set
+        {
+            if (value is { IsSelectable: true }) SetInput(ref _toOption, value);
+        }
     }
+
+    public GameSensitivityProfile FromGame => _fromOption.Profile;
+    public GameSensitivityProfile ToGame => _toOption.Profile;
 
     public string SensitivityInput
     {
@@ -101,15 +132,15 @@ public sealed class SensitivityConverterViewModel : ViewModelBase
         set => SetInput(ref _customYawToInput, value);
     }
 
-    public bool IsFromCustom => _fromGame.IsCustom;
-    public bool IsToCustom => _toGame.IsCustom;
+    public bool IsFromCustom => FromGame.IsCustom;
+    public bool IsToCustom => ToGame.IsCustom;
 
     // ---- parsed values ----
     private double? Sensitivity => ParsePositive(_sensitivityInput);
     private double? DpiFrom => ParsePositive(_dpiFromInput);
     private double? DpiTo => ParsePositive(_dpiToInput);
-    private double? YawFrom => _fromGame.IsCustom ? ParsePositive(_customYawFromInput) : _fromGame.Yaw;
-    private double? YawTo => _toGame.IsCustom ? ParsePositive(_customYawToInput) : _toGame.Yaw;
+    private double? YawFrom => FromGame.IsCustom ? ParsePositive(_customYawFromInput) : FromGame.Yaw;
+    private double? YawTo => ToGame.IsCustom ? ParsePositive(_customYawToInput) : ToGame.Yaw;
 
     public string ValidationMessage =>
         Sensitivity is null ? "Bitte eine gültige Sensitivity größer 0 eingeben."
@@ -131,8 +162,8 @@ public sealed class SensitivityConverterViewModel : ViewModelBase
         get
         {
             if (!HasResult) return "–";
-            var rounded = Math.Round(ExactResult, _toGame.Decimals, MidpointRounding.AwayFromZero);
-            return FormatSensitivity(rounded, _toGame.Decimals);
+            var rounded = Math.Round(ExactResult, ToGame.Decimals, MidpointRounding.AwayFromZero);
+            return FormatSensitivity(rounded, ToGame.Decimals);
         }
     }
 
@@ -142,14 +173,22 @@ public sealed class SensitivityConverterViewModel : ViewModelBase
         get
         {
             if (!HasResult) return "";
-            var rounded = Math.Round(ExactResult, _toGame.Decimals, MidpointRounding.AwayFromZero);
-            if (rounded <= 0) return $"Der Wert ist kleiner als die kleinste Einstellung von {_toGame.Name} — höhere DPI im Zielspiel verwenden.";
+            var rounded = Math.Round(ExactResult, ToGame.Decimals, MidpointRounding.AwayFromZero);
+            if (rounded <= 0) return $"Der Wert ist kleiner als die kleinste Einstellung von {ToGame.Name} — höhere DPI im Zielspiel verwenden.";
             var deviation = Math.Abs(rounded - ExactResult) / ExactResult;
-            return deviation > 0.01 ? $"Rundung auf {_toGame.Decimals} Nachkommastellen weicht um {deviation:P1} ab." : "";
+            return deviation > 0.01 ? $"Rundung auf {ToGame.Decimals} Nachkommastellen weicht um {deviation:P1} ab." : "";
         }
     }
 
     public bool HasPrecisionHint => PrecisionHint.Length > 0;
+
+    /// <summary>Unverified factors are usable but flagged, so nobody relies on them blindly.</summary>
+    public string VerificationHint =>
+        (FromGame.IsVerified || FromGame.IsCustom) && (ToGame.IsVerified || ToGame.IsCustom)
+            ? ""
+            : "Mindestens ein Faktor ist noch nicht gegen eine Referenz geprüft (siehe Hinweise unten).";
+
+    public bool HasVerificationHint => VerificationHint.Length > 0;
 
     public string ExactResultText => HasResult ? ExactResult.ToString("0.######", Invariant) : "–";
 
@@ -169,8 +208,8 @@ public sealed class SensitivityConverterViewModel : ViewModelBase
         ? SensitivityMath.EffectiveDpi(ExactResult, DpiTo!.Value).ToString("0.##", Invariant)
         : "–";
 
-    public string FromNote => _fromGame.Note;
-    public string ToNote => _toGame.Note;
+    public string FromNote => DescribeSource(FromGame);
+    public string ToNote => DescribeSource(ToGame);
 
     public string CopyStatus
     {
@@ -178,13 +217,39 @@ public sealed class SensitivityConverterViewModel : ViewModelBase
         private set => SetField(ref _copyStatus, value);
     }
 
+    private void OnLicenseTierChanged()
+    {
+        RefreshLocks();
+
+        // Pro → Trial with a Pro game selected: fall back instead of keeping a locked selection.
+        if (!_fromOption.IsSelectable) _fromOption = SelectableOrDefault(DefaultFromId, DefaultFromId);
+        if (!_toOption.IsSelectable) _toOption = SelectableOrDefault(DefaultToId, DefaultToId);
+
+        OnInputsChanged();
+    }
+
+    private void RefreshLocks()
+    {
+        var locked = IsLibraryLocked;
+        foreach (var option in GameOptions)
+        {
+            option.IsLocked = locked && option.Profile.IsProOnly;
+        }
+    }
+
+    private GameOptionViewModel SelectableOrDefault(string preferredId, string fallbackId) =>
+        FindSelectable(preferredId) ?? FindSelectable(fallbackId) ?? GameOptions.First(o => o.IsSelectable);
+
+    private GameOptionViewModel? FindSelectable(string id) =>
+        GameOptions.FirstOrDefault(o => o.IsSelectable && string.Equals(o.Profile.Id, id, StringComparison.OrdinalIgnoreCase));
+
     private void Swap()
     {
         // Read the result BEFORE swapping: ResultText is computed from the current from/to,
         // so reading it afterwards would convert the already-swapped setup again.
         var carriedSensitivity = HasResult ? ResultText : _sensitivityInput;
 
-        (_fromGame, _toGame) = (_toGame, _fromGame);
+        (_fromOption, _toOption) = (_toOption, _fromOption);
         (_dpiFromInput, _dpiToInput) = (_dpiToInput, _dpiFromInput);
         (_customYawFromInput, _customYawToInput) = (_customYawToInput, _customYawFromInput);
         _sensitivityInput = carriedSensitivity;
@@ -222,8 +287,8 @@ public sealed class SensitivityConverterViewModel : ViewModelBase
 
     private void PersistState()
     {
-        _state.FromGameId = _fromGame.Id;
-        _state.ToGameId = _toGame.Id;
+        _state.FromGameId = FromGame.Id;
+        _state.ToGameId = ToGame.Id;
         _state.Sensitivity = _sensitivityInput;
         _state.DpiFrom = _dpiFromInput;
         _state.DpiTo = _dpiToInput;
@@ -232,8 +297,8 @@ public sealed class SensitivityConverterViewModel : ViewModelBase
         _state.Save(_statePath);
     }
 
-    private GameSensitivityProfile? FindGame(string id) =>
-        Games.FirstOrDefault(g => string.Equals(g.Id, id, StringComparison.OrdinalIgnoreCase));
+    private static string DescribeSource(GameSensitivityProfile game) =>
+        game.IsCustom || game.IsVerified ? game.Note : game.Note + " (ungeprüft)";
 
     private static double? ParsePositive(string? text)
     {

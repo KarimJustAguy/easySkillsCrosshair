@@ -4,14 +4,36 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:vm="clr-namespace:easySkillsCrosshair.App.ViewModels"
-             xmlns:sens="clr-namespace:easySkillsCrosshair.Core.Sensitivity;assembly=easySkillsCrosshair.Core"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:SensitivityConverterViewModel}"
              Background="{StaticResource Brush.Background}">
     <UserControl.Resources>
-        <DataTemplate x:Key="GameItemTemplate" DataType="{x:Type sens:GameSensitivityProfile}">
-            <TextBlock Text="{Binding Name}" />
+        <DataTemplate x:Key="GameItemTemplate" DataType="{x:Type vm:GameOptionViewModel}">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                <Border Style="{StaticResource ProBadge}" Margin="8,0,0,0" Padding="5,0" VerticalAlignment="Center"
+                        Visibility="{Binding IsLocked, Converter={StaticResource BoolToVisibility}}">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Width="9" Height="9" Stretch="Uniform" Stroke="{StaticResource Brush.Gold}" StrokeThickness="1.4"
+                              Data="M7,9 L7,6 L9,4 L11,4 L13,6 L13,9 M5,9 L15,9 L15,17 L5,17 Z" />
+                        <TextBlock Text="PRO" Style="{StaticResource ProBadge.Text}" Margin="3,0,0,0" />
+                    </StackPanel>
+                </Border>
+                <TextBlock Text="ungeprüft" Foreground="{StaticResource Brush.TextSecondary}" FontSize="10" Margin="8,0,0,0"
+                           VerticalAlignment="Center"
+                           Visibility="{Binding ShowUnverifiedTag, Converter={StaticResource BoolToVisibility}}" />
+            </StackPanel>
         </DataTemplate>
+
+        <!-- Locked Pro games stay visible but can't be selected by mouse or keyboard. -->
+        <Style x:Key="GameItemContainer" TargetType="ComboBoxItem" BasedOn="{StaticResource ComboBoxItem.Gold}">
+            <Setter Property="IsEnabled" Value="{Binding IsSelectable}" />
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.55" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
     </UserControl.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -19,6 +41,10 @@
             <TextBlock Text="Sensitivity Converter" Style="{StaticResource Heading1}" Margin="0,0,0,4" />
             <TextBlock Style="{StaticResource Text.Muted}" Margin="0,0,0,20"
                        Text="Rechnet deine Sensitivity zwischen Spielen um — gleiche Mausdistanz für eine 360°-Drehung, gleiches Muskelgedächtnis." />
+            <TextBlock Style="{StaticResource Text.Muted}" Margin="0,-14,0,20" Foreground="{StaticResource Brush.Gold}"
+                       Visibility="{Binding IsLibraryLocked, Converter={StaticResource BoolToVisibility}}">
+                <Run Text="Pro schaltet " /><Run Text="{Binding ProGameCount, Mode=OneWay}" /><Run Text=" weitere Spiele frei." />
+            </TextBlock>
 
             <Border Style="{StaticResource Card}" Margin="0,0,0,14" BorderBrush="{StaticResource Brush.Danger}"
                     Visibility="{Binding HasCatalogWarning, Converter={StaticResource BoolToVisibility}}">
@@ -36,8 +62,8 @@
 
                     <StackPanel Grid.Column="0">
                         <TextBlock Text="VON" Style="{StaticResource Label.Section}" />
-                        <ComboBox Style="{StaticResource ComboBox.Gold}" ItemsSource="{Binding Games}"
-                                  SelectedItem="{Binding FromGame}" ItemTemplate="{StaticResource GameItemTemplate}"
+                        <ComboBox Style="{StaticResource ComboBox.Gold}" ItemsSource="{Binding GameOptions}" ItemContainerStyle="{StaticResource GameItemContainer}"
+                                  SelectedItem="{Binding FromOption}" ItemTemplate="{StaticResource GameItemTemplate}"
                                   MaxDropDownHeight="360" Margin="0,0,0,14" />
 
                         <TextBlock Text="Sensitivity" Style="{StaticResource Text.Muted}" Margin="0,0,0,4" />
@@ -65,8 +91,8 @@
 
                     <StackPanel Grid.Column="2">
                         <TextBlock Text="ZU" Style="{StaticResource Label.Section}" />
-                        <ComboBox Style="{StaticResource ComboBox.Gold}" ItemsSource="{Binding Games}"
-                                  SelectedItem="{Binding ToGame}" ItemTemplate="{StaticResource GameItemTemplate}"
+                        <ComboBox Style="{StaticResource ComboBox.Gold}" ItemsSource="{Binding GameOptions}" ItemContainerStyle="{StaticResource GameItemContainer}"
+                                  SelectedItem="{Binding ToOption}" ItemTemplate="{StaticResource GameItemTemplate}"
                                   MaxDropDownHeight="360" Margin="0,0,0,14" />
 
                         <TextBlock Text="DPI" Style="{StaticResource Text.Muted}" Margin="0,0,0,4" />
@@ -96,6 +122,8 @@
                         <TextBlock Text="{Binding ResultText}" FontSize="40" FontWeight="Bold" Foreground="{StaticResource Brush.Gold}" />
                         <TextBlock Text="{Binding PrecisionHint}" Style="{StaticResource Text.Muted}" TextWrapping="Wrap" Margin="0,4,0,0"
                                    Visibility="{Binding HasPrecisionHint, Converter={StaticResource BoolToVisibility}}" />
+                        <TextBlock Text="{Binding VerificationHint}" Style="{StaticResource Text.Muted}" TextWrapping="Wrap" Margin="0,4,0,0"
+                                   Visibility="{Binding HasVerificationHint, Converter={StaticResource BoolToVisibility}}" />
                         <TextBlock Text="{Binding ValidationMessage}" Foreground="{StaticResource Brush.Danger}" TextWrapping="Wrap" Margin="0,4,0,0"
                                    Visibility="{Binding HasValidationMessage, Converter={StaticResource BoolToVisibility}}" />
                     </StackPanel>

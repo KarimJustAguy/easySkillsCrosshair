@@ -72,6 +72,39 @@ public class SensitivityConverterTests
     }
 
     [Fact]
+    public void Trial_Set_Is_The_Core_Games_And_Pro_Extends_It()
+    {
+        var games = GameCatalog.LoadEmbedded();
+        var trialIds = games.Where(g => !g.IsProOnly).Select(g => g.Id).ToHashSet();
+
+        Assert.Equal(12, trialIds.Count);
+        Assert.Contains("valorant", trialIds);
+        Assert.Contains("counter-strike-2", trialIds);
+        Assert.Contains("fortnite", trialIds);
+        Assert.Contains(games, g => g.IsProOnly);
+    }
+
+    [Fact]
+    public void Missing_Tier_Defaults_To_Pro_So_Manual_Entries_Never_Widen_Trial()
+    {
+        var json = "{\"games\": [{\"id\":\"a\",\"name\":\"A\",\"yaw\":1},{\"id\":\"b\",\"name\":\"B\",\"yaw\":1,\"tier\":\"trial\",\"verified\":true}]}";
+
+        var games = GameCatalog.Parse(new MemoryStream(Encoding.UTF8.GetBytes(json)));
+
+        Assert.True(games.Single(g => g.Id == "a").IsProOnly);
+        Assert.False(games.Single(g => g.Id == "b").IsProOnly);
+        Assert.True(games.Single(g => g.Id == "b").IsVerified);
+    }
+
+    [Fact]
+    public void Unknown_Tier_Is_Rejected()
+    {
+        var json = "{\"games\": [{\"id\":\"a\",\"name\":\"A\",\"yaw\":1,\"tier\":\"gold\"}]}";
+
+        Assert.Throws<FormatException>(() => GameCatalog.Parse(new MemoryStream(Encoding.UTF8.GetBytes(json))));
+    }
+
+    [Fact]
     public void Broken_Editable_File_Falls_Back_To_Embedded_With_Warning()
     {
         var path = Path.Combine(Path.GetTempPath(), $"games-{Guid.NewGuid():N}.json");

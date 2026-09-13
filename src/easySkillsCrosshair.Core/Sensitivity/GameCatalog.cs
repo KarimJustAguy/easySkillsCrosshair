@@ -78,12 +78,22 @@ public static class GameCatalog
             if (entry.Yaw is not > 0 || !double.IsFinite(entry.Yaw.Value))
                 throw new FormatException($"\"{entry.Name}\": yaw muss eine positive Zahl sein.");
 
+            // A missing tier counts as Pro: entries added by hand never widen the Trial by accident.
+            var isProOnly = (entry.Tier?.Trim().ToLowerInvariant()) switch
+            {
+                "trial" => false,
+                "pro" or null or "" => true,
+                _ => throw new FormatException($"\"{entry.Name}\": tier muss \"trial\" oder \"pro\" sein."),
+            };
+
             games.Add(new GameSensitivityProfile(
                 entry.Id.Trim(),
                 entry.Name.Trim(),
                 entry.Yaw.Value,
                 Math.Clamp(entry.Decimals ?? 2, 0, 6),
-                entry.Note?.Trim() ?? ""));
+                entry.Note?.Trim() ?? "",
+                isProOnly,
+                entry.Verified ?? false));
         }
 
         return games;
@@ -102,5 +112,7 @@ public static class GameCatalog
         public double? Yaw { get; set; }
         public int? Decimals { get; set; }
         public string? Note { get; set; }
+        public string? Tier { get; set; }
+        public bool? Verified { get; set; }
     }
 }

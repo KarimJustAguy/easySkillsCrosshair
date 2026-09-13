@@ -66,7 +66,7 @@ public partial class App : System.Windows.Application
         var mainViewModel = new MainViewModel(
             crosshairEditor,
             new AimTrainingViewModel(featureGate, crosshairEditor),
-            CreateSensitivityConverter(dataDirectory),
+            CreateSensitivityConverter(dataDirectory, featureGate),
             new ProfilesViewModel(profileStore, crosshairEditor),
             new CommunityViewModel(communityService, crosshairEditor, featureGate),
             new SettingsViewModel(featureGate, licenseSwitch));
@@ -104,13 +104,14 @@ public partial class App : System.Windows.Application
     }
 
     /// <summary>Prefers the editable Data\games.json next to the exe; falls back to the embedded copy.</summary>
-    private static SensitivityConverterViewModel CreateSensitivityConverter(string dataDirectory)
+    private static SensitivityConverterViewModel CreateSensitivityConverter(string dataDirectory, IFeatureGate featureGate)
     {
         var catalog = GameCatalog.Load(Path.Combine(AppContext.BaseDirectory, "Data", "games.json"));
         return new SensitivityConverterViewModel(
             catalog.Games,
             catalog.Warning,
-            Path.Combine(dataDirectory, "sensitivity-converter.json"));
+            Path.Combine(dataDirectory, "sensitivity-converter.json"),
+            featureGate);
     }
 
     private void ShowMainWindow()
