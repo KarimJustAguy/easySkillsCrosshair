@@ -1,0 +1,11 @@
+<UserControl x:Class="easySkillsCrosshair.App.Controls.CrosshairPreviewControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DesignWidth="120" d:DesignHeight="120">
+    <Border x:Name="Root" Background="{StaticResource Brush.Background}" CornerRadius="8" ClipToBounds="True">
+        <Canvas x:Name="PreviewCanvas" HorizontalAlignment="Center" VerticalAlignment="Center" />
+    </Border>
+</UserControl>

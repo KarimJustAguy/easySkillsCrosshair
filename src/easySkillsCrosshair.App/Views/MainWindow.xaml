@@ -1,0 +1,75 @@
+<Window x:Class="easySkillsCrosshair.App.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:vm="clr-namespace:easySkillsCrosshair.App.ViewModels"
+        xmlns:views="clr-namespace:easySkillsCrosshair.App.Views"
+        mc:Ignorable="d"
+        Title="easySkills Crosshair"
+        Width="1180" Height="760" MinWidth="960" MinHeight="600"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource Brush.Background}"
+        d:DataContext="{d:DesignInstance Type=vm:MainViewModel}">
+
+    <Window.Resources>
+        <DataTemplate DataType="{x:Type vm:CrosshairEditorViewModel}">
+            <views:CrosshairEditorView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:AimTrainingViewModel}">
+            <views:AimTrainingView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:DpiCalculatorViewModel}">
+            <views:DpiCalculatorView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ProfilesViewModel}">
+            <views:ProfilesView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:CommunityViewModel}">
+            <views:CommunityView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
+            <views:SettingsView />
+        </DataTemplate>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="220" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Sidebar -->
+        <Border Grid.Column="0" Background="{StaticResource Brush.Surface}"
+                BorderBrush="{StaticResource Brush.Border}" BorderThickness="0,0,1,0">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="20,22,20,26">
+                    <Path Width="20" Height="20" Stretch="Uniform" Data="M12,2 L12,22 M2,12 L22,12"
+                          Stroke="{StaticResource Brush.Gold}" StrokeThickness="2" />
+                    <TextBlock Text="easySkills" Foreground="{StaticResource Brush.TextPrimary}"
+                               FontWeight="Bold" FontSize="16" Margin="10,0,0,0" VerticalAlignment="Center" />
+                </StackPanel>
+
+                <ListBox DockPanel.Dock="Top"
+                         Style="{StaticResource NavListBox}"
+                         ItemContainerStyle="{StaticResource NavListBoxItem}"
+                         ItemsSource="{Binding NavigationItems}"
+                         SelectedItem="{Binding SelectedItem}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <Path Width="16" Height="16" Stretch="Uniform" Data="{Binding Icon}"
+                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}"
+                                      StrokeThickness="1.8" />
+                                <TextBlock Text="{Binding Title}" Margin="12,0,0,0" VerticalAlignment="Center" FontSize="13" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+        </Border>
+
+        <!-- Content -->
+        <ContentControl Grid.Column="1" Content="{Binding CurrentView}" />
+    </Grid>
+</Window>

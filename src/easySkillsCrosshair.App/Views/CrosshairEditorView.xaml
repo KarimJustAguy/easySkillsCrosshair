@@ -1,0 +1,182 @@
+<UserControl x:Class="easySkillsCrosshair.App.Views.CrosshairEditorView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:vm="clr-namespace:easySkillsCrosshair.App.ViewModels"
+             xmlns:controls="clr-namespace:easySkillsCrosshair.App.Controls"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:CrosshairEditorViewModel}"
+             Background="{StaticResource Brush.Background}">
+    <Grid Margin="28">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" MinWidth="320" />
+            <ColumnDefinition Width="380" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Live preview -->
+        <Border Grid.Column="0" Style="{StaticResource Card}" Margin="0,0,20,0">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,16">
+                    <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource TextBox.Dark}" Width="240" />
+                </StackPanel>
+                <Border Background="{StaticResource Brush.Background}" CornerRadius="10" ClipToBounds="True">
+                    <Canvas x:Name="PreviewCanvas" Width="256" Height="256"
+                            HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+            </DockPanel>
+        </Border>
+
+        <!-- Inspector -->
+        <Border Grid.Column="1" Style="{StaticResource Card}">
+            <!-- Right padding keeps content clear of the (now slim) scrollbar. -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                          Padding="0,0,10,0">
+                <StackPanel>
+
+                    <TextBlock Text="FORM" Style="{StaticResource Label.Section}" />
+                    <ItemsControl ItemsSource="{Binding ShapeOptions}" Margin="0,0,0,20">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <controls:ProGateControl IsLocked="{Binding IsLocked}" IsCompact="True">
+                                    <Button Style="{StaticResource Button.OptionTile}"
+                                            ToolTip="{Binding DisplayName}"
+                                            Command="{Binding DataContext.SelectShapeCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}">
+                                        <controls:CrosshairPreviewControl Profile="{Binding PreviewProfile}"
+                                                                          CanvasSize="40" Width="40" Height="40" />
+                                    </Button>
+                                </controls:ProGateControl>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <TextBlock Text="FARBE" Style="{StaticResource Label.Section}" />
+                    <ItemsControl ItemsSource="{Binding ColorSwatches}" Margin="0,0,0,12">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Style="{StaticResource Button.ColorSwatch}"
+                                        Command="{Binding DataContext.SelectColorCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        CommandParameter="{Binding}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <controls:ProGateControl IsLocked="{Binding IsColorPickerLocked}" Margin="0,0,0,20">
+                        <StackPanel>
+                            <!-- Swatch sits left of the input so the PRO badge (top-right) can't cover it. -->
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="36" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0" CornerRadius="4" Height="32"
+                                        Background="{Binding ColorHex, Converter={StaticResource HexToBrushConverter}}"
+                                        BorderBrush="{StaticResource Brush.Border}" BorderThickness="1" />
+                                <TextBox Grid.Column="1" Margin="10,0,64,0" Style="{StaticResource TextBox.Dark}"
+                                         Text="{Binding ColorHex, UpdateSourceTrigger=PropertyChanged}" />
+                            </Grid>
+
+                            <TextBlock Text="R" Style="{StaticResource Text.Muted}" />
+                            <Slider Style="{StaticResource Slider.Gold}" Minimum="0" Maximum="255" Value="{Binding ColorR}" />
+                            <TextBlock Text="G" Style="{StaticResource Text.Muted}" />
+                            <Slider Style="{StaticResource Slider.Gold}" Minimum="0" Maximum="255" Value="{Binding ColorG}" />
+                            <TextBlock Text="B" Style="{StaticResource Text.Muted}" />
+                            <Slider Style="{StaticResource Slider.Gold}" Minimum="0" Maximum="255" Value="{Binding ColorB}" />
+
+                            <TextBlock Text="H" Style="{StaticResource Text.Muted}" Margin="0,8,0,0" />
+                            <Slider Style="{StaticResource Slider.Gold}" Minimum="0" Maximum="360" Value="{Binding Hue}" />
+                            <TextBlock Text="S" Style="{StaticResource Text.Muted}" />
+                            <Slider Style="{StaticResource Slider.Gold}" Minimum="0" Maximum="100" Value="{Binding Saturation}" />
+                            <TextBlock Text="V" Style="{StaticResource Text.Muted}" />
+                            <Slider Style="{StaticResource Slider.Gold}" Minimum="0" Maximum="100" Value="{Binding Brightness}" />
+                        </StackPanel>
+                    </controls:ProGateControl>
+
+                    <TextBlock Text="GRÖSSE" Style="{StaticResource Label.Section}" />
+                    <ItemsControl ItemsSource="{Binding SizePresets}" Margin="0,0,0,12">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Style="{StaticResource Button.SizeChip}"
+                                        Content="{Binding}"
+                                        Command="{Binding DataContext.SelectSizeCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        CommandParameter="{Binding}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <controls:ProGateControl IsLocked="{Binding IsSizeSliderLocked}" Margin="0,0,0,20">
+                        <StackPanel>
+                            <TextBlock Text="{Binding Size, StringFormat='Größe: {0:0.#}'}" Style="{StaticResource Text.Muted}" />
+                            <Slider Style="{StaticResource Slider.Gold}" Minimum="1" Maximum="64" Value="{Binding Size}" />
+                        </StackPanel>
+                    </controls:ProGateControl>
+
+                    <TextBlock Text="DARSTELLUNG" Style="{StaticResource Label.Section}" />
+                    <TextBlock Text="{Binding Thickness, StringFormat='Kontur: {0:0.#}'}" Style="{StaticResource Text.Muted}" />
+                    <Slider Style="{StaticResource Slider.Gold}" Minimum="0.5" Maximum="12" Value="{Binding Thickness}" />
+                    <TextBlock Text="{Binding Rotation, StringFormat='Rotation: {0:0}°'}" Style="{StaticResource Text.Muted}" />
+                    <Slider Style="{StaticResource Slider.Gold}" Minimum="0" Maximum="360" Value="{Binding Rotation}" />
+                    <TextBlock Text="{Binding Opacity, StringFormat='Transparenz: {0:P0}'}" Style="{StaticResource Text.Muted}" />
+                    <Slider Style="{StaticResource Slider.Gold}" Minimum="0" Maximum="1" Value="{Binding Opacity}" Margin="0,0,0,20" />
+
+                    <TextBlock Text="POSITION (X/Y-OFFSET)" Style="{StaticResource Label.Section}" />
+                    <Grid Margin="0,0,0,20">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="12" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="{Binding OffsetX, StringFormat='X: {0}px'}" Style="{StaticResource Text.Muted}" />
+                            <Slider Style="{StaticResource Slider.Gold}" Minimum="-200" Maximum="200" Value="{Binding OffsetX}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="{Binding OffsetY, StringFormat='Y: {0}px'}" Style="{StaticResource Text.Muted}" />
+                            <Slider Style="{StaticResource Slider.Gold}" Minimum="-200" Maximum="200" Value="{Binding OffsetY}" />
+                        </StackPanel>
+                    </Grid>
+
+                    <TextBlock Text="DYNAMISCHE REAKTIONEN" Style="{StaticResource Label.Section}" />
+                    <controls:ProGateControl IsLocked="{Binding IsDynamicReactionsLocked}" Margin="0,0,0,20">
+                        <StackPanel>
+                            <CheckBox Content="Bloom beim Schießen" Style="{StaticResource CheckBox.Gold}"
+                                      IsChecked="{Binding BloomOnFire}" Margin="0,0,0,10" />
+                            <CheckBox Content="Ausblenden bei ADS" Style="{StaticResource CheckBox.Gold}"
+                                      IsChecked="{Binding HideOnAim}" Margin="0,0,0,10" />
+                            <CheckBox Content="T-Shape bei Bewegung" Style="{StaticResource CheckBox.Gold}"
+                                      IsChecked="{Binding TShapeOnMove}" />
+                        </StackPanel>
+                    </controls:ProGateControl>
+
+                    <TextBlock Text="CUSTOM MEDIA" Style="{StaticResource Label.Section}" />
+                    <controls:ProGateControl IsLocked="{Binding IsCustomMediaLocked}">
+                        <StackPanel>
+                            <Button Content="PNG / SVG / GIF hochladen" Style="{StaticResource Button.Base}"
+                                    HorizontalAlignment="Stretch" Command="{Binding BrowseCustomMediaCommand}" />
+                            <TextBlock Text="{Binding CustomMediaPath}" Style="{StaticResource Text.Muted}"
+                                       Margin="0,8,0,0" TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                    </controls:ProGateControl>
+
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+    </Grid>
+</UserControl>

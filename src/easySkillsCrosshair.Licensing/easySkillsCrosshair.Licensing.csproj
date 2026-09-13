@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>easySkillsCrosshair.Licensing</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\easySkillsCrosshair.Core\easySkillsCrosshair.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Wraps SteamApps.BIsDlcInstalled for the Pro entitlement check. Requires network
+         access to restore and, at runtime, steam_api64.dll + a running Steam client. -->
+    <PackageReference Include="Steamworks.NET" Version="20.2.0" />
+  </ItemGroup>
+
+</Project>

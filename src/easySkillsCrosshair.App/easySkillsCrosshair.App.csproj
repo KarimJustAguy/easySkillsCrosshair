@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>easySkillsCrosshair.App</RootNamespace>
+    <AssemblyName>easySkillsCrosshair</AssemblyName>
+    <UseWPF>true</UseWPF>
+    <!-- Only used for the tray icon (NotifyIcon) that provides the clean-exit path. -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\easySkillsCrosshair.Core\easySkillsCrosshair.Core.csproj" />
+    <ProjectReference Include="..\easySkillsCrosshair.Overlay\easySkillsCrosshair.Overlay.csproj" />
+    <ProjectReference Include="..\easySkillsCrosshair.Licensing\easySkillsCrosshair.Licensing.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Lets Steamworks.NET's SteamAPI.Init() resolve an AppId locally without a running
+         Steam client trying to relaunch the process. 480 = Spacewar, Valve's public test AppId;
+         swap for the real "easySkills Crosshair" AppId once it exists on Steamworks. -->
+    <Content Include="steam_appid.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>

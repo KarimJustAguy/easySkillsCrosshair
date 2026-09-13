@@ -1,0 +1,27 @@
+<UserControl x:Class="easySkillsCrosshair.App.Views.AimTrainingView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:vm="clr-namespace:easySkillsCrosshair.App.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:AimTrainingViewModel}"
+             Background="{StaticResource Brush.Background}">
+    <Grid Margin="28">
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="420">
+            <TextBlock Text="Schießstand" Style="{StaticResource Heading1}" HorizontalAlignment="Center" Margin="0,0,0,10" />
+            <TextBlock Style="{StaticResource Text.Muted}" TextWrapping="Wrap" TextAlignment="Center" Margin="0,0,0,20">
+                Die vollständige Trainingsumgebung (Trainingsmodi, Präzisions-/Treffer-Metriken)
+                ist als eigenes Modul geplant und noch nicht Teil dieser Version. Diese Ansicht
+                ist bereits an das Feature-Toggle-System angebunden.
+            </TextBlock>
+            <Border Style="{StaticResource Card}">
+                <TextBlock Style="{StaticResource Text.Body}" TextWrapping="Wrap" TextAlignment="Center">
+                    <Run Text="Aktueller Zugriff: " />
+                    <Run Text="{Binding AccessLevelText, Mode=OneWay}"
+                         FontWeight="Bold" Foreground="{StaticResource Brush.Gold}" />
+                </TextBlock>
+            </Border>
+        </StackPanel>
+    </Grid>
+</UserControl>

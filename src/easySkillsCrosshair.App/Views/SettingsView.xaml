@@ -1,0 +1,60 @@
+<UserControl x:Class="easySkillsCrosshair.App.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:vm="clr-namespace:easySkillsCrosshair.App.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:SettingsViewModel}"
+             Background="{StaticResource Brush.Background}">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="28" MaxWidth="460" HorizontalAlignment="Left">
+            <TextBlock Text="Einstellungen" Style="{StaticResource Heading1}" Margin="0,0,0,20" />
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="LIZENZ" Style="{StaticResource Label.Section}" />
+                    <Grid>
+                        <TextBlock Text="{Binding TierDisplayName}" Style="{StaticResource Heading2}" />
+                        <Border Style="{StaticResource ProBadge}" HorizontalAlignment="Right"
+                                Visibility="{Binding IsProUser, Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock Text="AKTIV" Style="{StaticResource ProBadge.Text}" />
+                        </Border>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Dev/QA only: hidden entirely when no ILicenseSwitch was wired in (shipped build). -->
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16"
+                    Visibility="{Binding IsLicenseSwitchAvailable, Converter={StaticResource BoolToVisibility}}">
+                <StackPanel>
+                    <TextBlock Text="TESTMODUS" Style="{StaticResource Label.Section}" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                            <TextBlock Text="Pro-Version aktivieren" Style="{StaticResource Text.Body}" />
+                            <TextBlock Style="{StaticResource Text.Muted}" TextWrapping="Wrap" Margin="0,4,0,0"
+                                       Text="Schaltet live zwischen Trial und Pro um – ohne Neustart. Nur im Testbetrieb verfügbar, im Steam-Release entscheidet das DLC-Entitlement." />
+                        </StackPanel>
+                        <ToggleButton Grid.Column="1" VerticalAlignment="Center"
+                                      Style="{StaticResource ToggleSwitch}"
+                                      IsChecked="{Binding IsProEnabled, Mode=TwoWay}" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="ÜBERSICHT" Style="{StaticResource Label.Section}" />
+                    <TextBlock Style="{StaticResource Text.Muted}" TextWrapping="Wrap">
+                        Globale Hotkeys, Autostart und Overlay-Zielmonitor werden hier ergänzt,
+                        sobald die entsprechenden Module (Input/Hotkeys, Multi-Monitor-Auswahl) angebunden sind.
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
