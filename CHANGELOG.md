@@ -9,6 +9,18 @@ Kategorien: **Neu** · **Geändert** · **Behoben** · **Entfernt**
 
 ## Unveröffentlicht
 
+### 2026-09-13 — Ebenen-Spalte aufgeräumt
+**Neu**
+- Gold-An/Aus-Schalter pro Ebene; ausgeschaltete Ebenen werden abgedunkelt.
+- „+ Neue Ebene" legt ein Standard-Fadenkreuz an — die Form wird rechts gewählt.
+- Automatisch vergebene Ebenen-Namen folgen der Form („Linie" → „Punkt", „Punkt 2" …); selbst vergebene Namen bleiben.
+
+**Entfernt**
+- Formen-Buttons unter „Ebene hinzufügen" (Kreuz, Punkt, Kreis, X, Box, Chevron, Linie, Bild) — die Formwahl gibt es nur noch rechts.
+
+**Behoben**
+- Ebenen-Name passte nicht mehr zur Form, nachdem die Form geändert wurde.
+
 ### 2026-09-13 — Editor entschlackt
 **Entfernt**
 - H/S/V-Farbregler — Farbe nur noch per Farbfeldern, Hex-Eingabe und R/G/B-Reglern.

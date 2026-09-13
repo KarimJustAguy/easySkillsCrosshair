@@ -26,27 +26,28 @@
                     <TextBlock Text="EBENEN" Style="{StaticResource Label.Section}" Margin="0" />
                 </DockPanel>
 
+                <!-- Layer management only; the shape of a layer is chosen in the inspector on the right. -->
                 <StackPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
-                    <WrapPanel Margin="0,0,0,8">
-                        <Button Content="Duplizieren" Style="{StaticResource Button.Small}" Command="{Binding DuplicateLayerCommand}" />
-                        <Button Content="▲" ToolTip="Nach oben" Style="{StaticResource Button.Small}" Command="{Binding MoveLayerUpCommand}" />
-                        <Button Content="▼" ToolTip="Nach unten" Style="{StaticResource Button.Small}" Command="{Binding MoveLayerDownCommand}" />
-                        <Button Content="Löschen" Style="{StaticResource Button.Small}" Command="{Binding RemoveLayerCommand}" />
-                    </WrapPanel>
-
-                    <TextBlock Text="EBENE HINZUFÜGEN" Style="{StaticResource Label.Section}" />
-                    <controls:ProGateControl IsLocked="{Binding IsMultiLayerLocked}">
-                        <WrapPanel>
-                            <Button Content="Kreuz" Style="{StaticResource Button.Small}" Command="{Binding AddLayerCommand}" CommandParameter="{x:Static crosshair:LayerType.Cross}" />
-                            <Button Content="Punkt" Style="{StaticResource Button.Small}" Command="{Binding AddLayerCommand}" CommandParameter="{x:Static crosshair:LayerType.Dot}" />
-                            <Button Content="Kreis" Style="{StaticResource Button.Small}" Command="{Binding AddLayerCommand}" CommandParameter="{x:Static crosshair:LayerType.Circle}" />
-                            <Button Content="X" Style="{StaticResource Button.Small}" Command="{Binding AddLayerCommand}" CommandParameter="{x:Static crosshair:LayerType.XCross}" />
-                            <Button Content="Box" Style="{StaticResource Button.Small}" Command="{Binding AddLayerCommand}" CommandParameter="{x:Static crosshair:LayerType.Box}" />
-                            <Button Content="Chevron" Style="{StaticResource Button.Small}" Command="{Binding AddLayerCommand}" CommandParameter="{x:Static crosshair:LayerType.Chevron}" />
-                            <Button Content="Linie" Style="{StaticResource Button.Small}" Command="{Binding AddLayerCommand}" CommandParameter="{x:Static crosshair:LayerType.Line}" />
-                            <Button Content="Bild…" Style="{StaticResource Button.Small}" Command="{Binding AddImageLayerCommand}" />
-                        </WrapPanel>
+                    <controls:ProGateControl IsLocked="{Binding IsMultiLayerLocked}" Margin="0,0,0,8">
+                        <Button Content="+ Neue Ebene" Style="{StaticResource Button.Primary}" HorizontalAlignment="Stretch"
+                                Command="{Binding AddLayerCommand}" />
                     </controls:ProGateControl>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="34" />
+                            <ColumnDefinition Width="34" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0" Content="Kopie" ToolTip="Ebene duplizieren" Style="{StaticResource Button.Small}"
+                                Padding="4,6" Margin="0,0,4,0" Command="{Binding DuplicateLayerCommand}" />
+                        <Button Grid.Column="1" Content="▲" ToolTip="Nach oben" Style="{StaticResource Button.Small}"
+                                Padding="0,6" Margin="0,0,4,0" Command="{Binding MoveLayerUpCommand}" />
+                        <Button Grid.Column="2" Content="▼" ToolTip="Nach unten" Style="{StaticResource Button.Small}"
+                                Padding="0,6" Margin="0,0,4,0" Command="{Binding MoveLayerDownCommand}" />
+                        <Button Grid.Column="3" Content="Löschen" ToolTip="Ebene löschen" Style="{StaticResource Button.Small}"
+                                Padding="4,6" Margin="0" Command="{Binding RemoveLayerCommand}" />
+                    </Grid>
                 </StackPanel>
 
                 <ListBox Style="{StaticResource LayerListBox}"
@@ -56,23 +57,17 @@
                     <ListBox.ItemTemplate>
                         <DataTemplate DataType="{x:Type vm:LayerViewModel}">
                             <DockPanel>
-                                <Button DockPanel.Dock="Left" Style="{StaticResource Button.Ghost}" Width="26" Padding="0"
-                                        ToolTip="Sichtbar ein/aus"
-                                        Command="{Binding DataContext.ToggleLayerVisibilityCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                        CommandParameter="{Binding}">
-                                    <Grid Width="14" Height="14">
-                                        <Ellipse Stroke="{StaticResource Brush.Gold}" StrokeThickness="1.5" />
-                                        <Ellipse x:Name="Pupil" Width="6" Height="6" Fill="{StaticResource Brush.Gold}" />
-                                    </Grid>
-                                </Button>
-                                <StackPanel Margin="6,0,0,0" VerticalAlignment="Center">
+                                <ToggleButton DockPanel.Dock="Right" Style="{StaticResource ToggleSwitch}" VerticalAlignment="Center"
+                                              Margin="8,0,0,0" ToolTip="Ebene ein/aus"
+                                              IsChecked="{Binding IsVisible, Mode=TwoWay}" />
+                                <StackPanel x:Name="Labels" VerticalAlignment="Center">
                                     <TextBlock Text="{Binding Name}" Style="{StaticResource Text.Body}" TextTrimming="CharacterEllipsis" />
                                     <TextBlock Text="{Binding TypeDisplayName}" Style="{StaticResource Text.Muted}" FontSize="11" />
                                 </StackPanel>
                             </DockPanel>
                             <DataTemplate.Triggers>
                                 <DataTrigger Binding="{Binding IsVisible}" Value="False">
-                                    <Setter TargetName="Pupil" Property="Visibility" Value="Collapsed" />
+                                    <Setter TargetName="Labels" Property="Opacity" Value="0.45" />
                                 </DataTrigger>
                             </DataTemplate.Triggers>
                         </DataTemplate>

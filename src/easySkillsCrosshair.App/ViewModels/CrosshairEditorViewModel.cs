@@ -35,16 +35,11 @@ public sealed class CrosshairEditorViewModel : ViewModelBase
         LayerTypeOptions = Enum.GetValues<LayerType>().Select(t => new LayerTypeOptionViewModel(t)).ToArray();
         ColorSwatches = TrialCatalog.Colors.Select(c => new ColorSwatchViewModel(c)).ToArray();
 
-        AddLayerCommand = new RelayCommand(p => AddLayer(p is LayerType t ? t : LayerType.Cross), _ => !IsMultiLayerLocked);
-        AddImageLayerCommand = new RelayCommand(_ => AddImageLayer(), _ => IsCustomMediaUnlocked);
+        AddLayerCommand = new RelayCommand(_ => AddLayer(), _ => !IsMultiLayerLocked);
         RemoveLayerCommand = new RelayCommand(p => RemoveLayer(p as LayerViewModel ?? SelectedLayer), _ => Layers.Count > 1);
         DuplicateLayerCommand = new RelayCommand(p => DuplicateLayer(p as LayerViewModel ?? SelectedLayer), _ => !IsMultiLayerLocked);
         MoveLayerUpCommand = new RelayCommand(p => MoveLayer(p as LayerViewModel ?? SelectedLayer, -1));
         MoveLayerDownCommand = new RelayCommand(p => MoveLayer(p as LayerViewModel ?? SelectedLayer, +1));
-        ToggleLayerVisibilityCommand = new RelayCommand(p =>
-        {
-            if (p is LayerViewModel layer) layer.IsVisible = !layer.IsVisible;
-        });
 
         SelectLayerTypeCommand = new RelayCommand(p =>
         {
@@ -74,12 +69,10 @@ public sealed class CrosshairEditorViewModel : ViewModelBase
     public IReadOnlyList<ColorSwatchViewModel> ColorSwatches { get; }
 
     public RelayCommand AddLayerCommand { get; }
-    public RelayCommand AddImageLayerCommand { get; }
     public RelayCommand RemoveLayerCommand { get; }
     public RelayCommand DuplicateLayerCommand { get; }
     public RelayCommand MoveLayerUpCommand { get; }
     public RelayCommand MoveLayerDownCommand { get; }
-    public RelayCommand ToggleLayerVisibilityCommand { get; }
     public RelayCommand SelectLayerTypeCommand { get; }
     public RelayCommand SelectColorCommand { get; }
     public RelayCommand BrowseImageCommand { get; }
@@ -185,29 +178,15 @@ public sealed class CrosshairEditorViewModel : ViewModelBase
         Publish();
     }
 
-    private void AddLayer(LayerType type)
+    /// <summary>Always a default crosshair; the shape is then chosen in the inspector on the right.</summary>
+    private void AddLayer()
     {
-        if (IsMultiLayerLocked || !_featureGate.IsLayerTypeAllowed(type)) return;
-
-        var layer = new CrosshairLayer
-        {
-            Name = NextLayerName(type),
-            Type = type,
-            Length = type == LayerType.Image ? 16 : type == LayerType.Dot ? 3 : 6,
-        };
-        InsertAboveSelection(layer);
-    }
-
-    private void AddImageLayer()
-    {
-        if (IsCustomMediaLocked || PickImageFile() is not { } path) return;
+        if (IsMultiLayerLocked) return;
 
         InsertAboveSelection(new CrosshairLayer
         {
-            Name = System.IO.Path.GetFileNameWithoutExtension(path),
-            Type = LayerType.Image,
-            ImagePath = path,
-            Length = 16,
+            Name = NextLayerName(LayerType.Cross, except: null),
+            Type = LayerType.Cross,
         });
     }
 
@@ -262,6 +241,12 @@ public sealed class CrosshairEditorViewModel : ViewModelBase
             layer.Layer.Length = Math.Max(layer.Layer.Length, 16);
         }
 
+        // Generated names follow the shape ("Linie" → "Punkt"); names the user typed stay.
+        if (LayerTypeNames.IsAutoName(layer.Name))
+        {
+            layer.Layer.Name = NextLayerName(type, except: layer);
+        }
+
         layer.Type = type; // notifies + publishes
         RefreshActiveTypeOption();
         BrowseImageCommand.RaiseCanExecuteChanged();
@@ -281,11 +266,17 @@ public sealed class CrosshairEditorViewModel : ViewModelBase
         return dialog.ShowDialog() == true ? dialog.FileName : null;
     }
 
-    private string NextLayerName(LayerType type)
+    /// <summary>"Punkt", then "Punkt 2", "Punkt 3" … — first name not used by another layer.</summary>
+    private string NextLayerName(LayerType type, LayerViewModel? except)
     {
         var baseName = LayerTypeNames.Get(type);
-        var n = Layers.Count(l => l.Name.StartsWith(baseName, StringComparison.Ordinal)) + 1;
-        return n == 1 ? baseName : $"{baseName} {n}";
+        var used = Layers.Where(l => !ReferenceEquals(l, except)).Select(l => l.Name).ToHashSet(StringComparer.Ordinal);
+
+        if (!used.Contains(baseName)) return baseName;
+
+        var n = 2;
+        while (used.Contains($"{baseName} {n}")) n++;
+        return $"{baseName} {n}";
     }
 
     private void OnLicenseTierChanged()
@@ -302,7 +293,6 @@ public sealed class CrosshairEditorViewModel : ViewModelBase
         }
 
         AddLayerCommand.RaiseCanExecuteChanged();
-        AddImageLayerCommand.RaiseCanExecuteChanged();
         DuplicateLayerCommand.RaiseCanExecuteChanged();
         BrowseImageCommand.RaiseCanExecuteChanged();
     }
