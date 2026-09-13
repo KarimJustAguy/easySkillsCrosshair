@@ -19,8 +19,8 @@
         <DataTemplate DataType="{x:Type vm:AimTrainingViewModel}">
             <views:AimTrainingView />
         </DataTemplate>
-        <DataTemplate DataType="{x:Type vm:DpiCalculatorViewModel}">
-            <views:DpiCalculatorView />
+        <DataTemplate DataType="{x:Type vm:SensitivityConverterViewModel}">
+            <views:SensitivityConverterView />
         </DataTemplate>
         <DataTemplate DataType="{x:Type vm:ProfilesViewModel}">
             <views:ProfilesView />

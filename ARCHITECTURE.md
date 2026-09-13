@@ -13,6 +13,7 @@ src/
     Crosshair/       CrosshairProfile, CrosshairLayer, LayerType, RgbaColor, DynamicReactionSettings
     Reactions/       ReactionEngine, CrosshairRenderState (Bloom/ADS/Bewegung, reine Logik)
     AimTraining/     AimTrainingSession (Modi, Ziele, Scoring — reine Logik)
+    Sensitivity/     SensitivityMath, GameCatalog, games.json (eingebettet), SensitivityConverterState
     Community/       ICommunityService, LocalCommunityService, CrosshairShareCodec, CrosshairPresets
     Persistence/     GameProfile, IProfileStore, JsonProfileStore
     Overlay/         IOverlayHost, IMonitorProvider, MonitorDescriptor, OverlayHostKind
@@ -79,4 +80,5 @@ tests/
 - **Schießstand**: `AimTrainingSession` (Core) + `AimArenaElement` (Immediate-Mode-Rendering) + dein aktuelles Fadenkreuz als Cursor. Modi Flick/Präzision/Tracking, Dauer 0,5–30 min, Metriken Zeit/Score/Treffer/Präzision/Ø-Reaktion. Trial: 30-Sekunden-Flick-Vorschau.
 - **Community**: `LocalCommunityService` — eingebaute Presets + lokale Bibliothek (`%AppData%\easySkills\Crosshair\community.json`). Teilen per **Share-Code** (`ESC1:` + gzip + Base64URL; ohne Bilddaten, lokale Pfade werden nie geteilt) oder **Datei** (`.escrosshair`, Bilder eingebettet und beim Import inhaltsadressiert nach `media\` entpackt). Decoder ist größenbegrenzt, versioniert und wirft ausschließlich `FormatException`. Steam Workshop ist später hinter `ICommunityService` nachrüstbar.
 - **Trial/Pro-Kennzeichnung**: `ProGateControl` dimmt/deaktiviert gesperrte Bereiche und zeigt ein Gold-„PRO"-Badge (kompakte Icon-Variante für kleine Kacheln).
+- **Sensitivity Converter** (Sidebar „DPI Calculator", in jeder Lizenzstufe frei): Quelle/Ziel-Spiel, Sensitivity, DPI getrennt je Seite → umgerechnete Sensitivity (gerundet auf die Einstellungs-Präzision des Zielspiels) plus exakter Wert, cm/360°, inch/360°, eDPI. Methode: gleiche 360°-Mausdistanz, `sens_to = sens_from · yaw_from · dpi_from / (yaw_to · dpi_to)`. Spieldaten in `games.json`: nur Titel mit linearer, gut belegter Umrechnung, jeder Faktor mit Herkunftsnotiz; dazu „Benutzerdefiniert" mit eigenem Faktor. Die Kopie `Data\games.json` neben der exe ist editierbar (Korrekturen nach Game-Patches ohne Rebuild); ist sie ungültig, greift die eingebettete Kopie mit sichtbarer Warnung. Eingaben akzeptieren Komma und Punkt; die letzte Auswahl wird unter `%AppData%\easySkills\Crosshair\sensitivity-converter.json` gespeichert.
 - **Persistenz**: Per-Game-Profile als JSON unter `%AppData%\easySkills\Crosshair\profiles.json`.

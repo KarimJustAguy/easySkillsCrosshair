@@ -10,7 +10,7 @@ public sealed class MainViewModel : ViewModelBase
     public MainViewModel(
         CrosshairEditorViewModel crosshairEditor,
         AimTrainingViewModel aimTraining,
-        DpiCalculatorViewModel dpiCalculator,
+        SensitivityConverterViewModel sensitivityConverter,
         ProfilesViewModel profiles,
         CommunityViewModel community,
         SettingsViewModel settings)
@@ -19,7 +19,7 @@ public sealed class MainViewModel : ViewModelBase
         [
             new NavigationItemViewModel("Crosshair", IconKind.Crosshair, crosshairEditor),
             new NavigationItemViewModel("Aim Training", IconKind.Target, aimTraining),
-            new NavigationItemViewModel("DPI Calculator", IconKind.Calculator, dpiCalculator),
+            new NavigationItemViewModel("DPI Calculator", IconKind.Calculator, sensitivityConverter),
             new NavigationItemViewModel("Profile", IconKind.Layers, profiles),
             new NavigationItemViewModel("Community", IconKind.Globe, community),
             new NavigationItemViewModel("Settings", IconKind.Settings, settings),

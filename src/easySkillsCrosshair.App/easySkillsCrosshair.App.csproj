@@ -24,6 +24,10 @@
     <Content Include="steam_appid.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <!-- Editable sensitivity data: correct/add games after patches without rebuilding. -->
+    <Content Include="..\easySkillsCrosshair.Core\Sensitivity\games.json" Link="Data\games.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
 </Project>

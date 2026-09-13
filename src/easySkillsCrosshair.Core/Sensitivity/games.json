@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "_comment": "yaw = degrees turned per mouse count at in-game sensitivity 1. Only games with a linear, well-documented sensitivity are listed. Edit Data\\games.json next to the exe to add or correct entries without rebuilding; an invalid file falls back to the built-in copy.",
+  "games": [
+    {
+      "id": "counter-strike-2",
+      "name": "Counter-Strike 2",
+      "yaw": 0.022,
+      "decimals": 3,
+      "note": "Source-2-Konsolenvariable m_yaw 0.022 (Standard)."
+    },
+    {
+      "id": "cs-go",
+      "name": "Counter-Strike: Global Offensive",
+      "yaw": 0.022,
+      "decimals": 3,
+      "note": "Source-Konsolenvariable m_yaw 0.022 (Standard)."
+    },
+    {
+      "id": "cs-1-6",
+      "name": "Counter-Strike 1.6",
+      "yaw": 0.022,
+      "decimals": 2,
+      "note": "GoldSrc-Konsolenvariable m_yaw 0.022 (Standard)."
+    },
+    {
+      "id": "valorant",
+      "name": "Valorant",
+      "yaw": 0.07,
+      "decimals": 3,
+      "note": "Entspricht dem etablierten Verhältnis CS-Sensitivity ÷ 3,18 = Valorant-Sensitivity."
+    },
+    {
+      "id": "apex-legends",
+      "name": "Apex Legends",
+      "yaw": 0.022,
+      "decimals": 2,
+      "note": "Source-basiert, m_yaw 0.022 — identisch zu CS. Das Menü zeigt 1 Nachkommastelle, settings.cfg erlaubt mehr."
+    },
+    {
+      "id": "overwatch-2",
+      "name": "Overwatch 2",
+      "yaw": 0.0066,
+      "decimals": 2,
+      "note": "Etabliertes Verhältnis CS-Sensitivity × 3,33 = Overwatch-Sensitivity. Gilt auch für Overwatch 1."
+    },
+    {
+      "id": "call-of-duty",
+      "name": "Call of Duty (MW / Warzone / BO6)",
+      "yaw": 0.0066,
+      "decimals": 2,
+      "note": "Gleicher Faktor wie Overwatch (Standard-Sensitivity seit Modern Warfare 2019). Gilt nicht für die Legacy-Beschleunigungskurve."
+    },
+    {
+      "id": "fortnite",
+      "name": "Fortnite",
+      "yaw": 0.5555,
+      "decimals": 3,
+      "note": "Community-Standardwert für Maus-Sensitivity X (seit dem Sensitivity-Update 2018); setzt X = Y voraus."
+    },
+    {
+      "id": "team-fortress-2",
+      "name": "Team Fortress 2",
+      "yaw": 0.022,
+      "decimals": 3,
+      "note": "Source-Konsolenvariable m_yaw 0.022 (Standard)."
+    },
+    {
+      "id": "titanfall-2",
+      "name": "Titanfall 2",
+      "yaw": 0.022,
+      "decimals": 2,
+      "note": "Source-basiert, m_yaw 0.022 — identisch zu Apex Legends."
+    },
+    {
+      "id": "quake-live",
+      "name": "Quake Live",
+      "yaw": 0.022,
+      "decimals": 3,
+      "note": "id-Tech-Konsolenvariable m_yaw 0.022 (Ursprung des Source-Werts)."
+    },
+    {
+      "id": "source-games",
+      "name": "Andere Source-Spiele (L4D2, Garry's Mod, Half-Life 2 …)",
+      "yaw": 0.022,
+      "decimals": 2,
+      "note": "Source-Konsolenvariable m_yaw 0.022 (Standard) — sofern im Spiel nicht verändert."
+    }
+  ]
+}

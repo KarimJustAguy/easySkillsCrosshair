@@ -5,4 +5,9 @@
     <RootNamespace>easySkillsCrosshair.Core</RootNamespace>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- Built-in fallback; the App also ships an editable copy as Data\games.json. -->
+    <EmbeddedResource Include="Sensitivity\games.json" LogicalName="easySkillsCrosshair.Core.Sensitivity.games.json" />
+  </ItemGroup>
+
 </Project>

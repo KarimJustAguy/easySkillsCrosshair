@@ -7,6 +7,7 @@ using easySkillsCrosshair.Core.Crosshair;
 using easySkillsCrosshair.Core.Licensing;
 using easySkillsCrosshair.Core.Overlay;
 using easySkillsCrosshair.Core.Persistence;
+using easySkillsCrosshair.Core.Sensitivity;
 using easySkillsCrosshair.Licensing;
 using easySkillsCrosshair.Licensing.Steam;
 using easySkillsCrosshair.Overlay;
@@ -65,7 +66,7 @@ public partial class App : System.Windows.Application
         var mainViewModel = new MainViewModel(
             crosshairEditor,
             new AimTrainingViewModel(featureGate, crosshairEditor),
-            new DpiCalculatorViewModel(),
+            CreateSensitivityConverter(dataDirectory),
             new ProfilesViewModel(profileStore, crosshairEditor),
             new CommunityViewModel(communityService, crosshairEditor, featureGate),
             new SettingsViewModel(featureGate, licenseSwitch));
@@ -100,6 +101,16 @@ public partial class App : System.Windows.Application
 
         _steamApps = TryCreateSteamAppsApi();
         return (LicenseProviderFactory.CreateFromSteam(_steamApps, ProDlcAppId), null);
+    }
+
+    /// <summary>Prefers the editable Data\games.json next to the exe; falls back to the embedded copy.</summary>
+    private static SensitivityConverterViewModel CreateSensitivityConverter(string dataDirectory)
+    {
+        var catalog = GameCatalog.Load(Path.Combine(AppContext.BaseDirectory, "Data", "games.json"));
+        return new SensitivityConverterViewModel(
+            catalog.Games,
+            catalog.Warning,
+            Path.Combine(dataDirectory, "sensitivity-converter.json"));
     }
 
     private void ShowMainWindow()
